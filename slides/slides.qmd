@@ -1,7 +1,7 @@
 ---
-title: "Template Presentation"
-subtitle: "Event name"
-date: "20XX-YY-ZZ"
+title: "Multi-GPU Parallelism"
+subtitle: "DiRAC GPU Performance Portability Workshop"
+date: "2026-09-16"
 date-format: "dddd DD MMMM YYYY"
 from: markdown+emoji
 format:
@@ -21,11 +21,73 @@ authors:
    role: Research Software Engineer
    affiliations:
      - name: University of Cambridge
+ - name: Jamie Quinn
+   role: Research Software Engineer
+   affiliations:
+     - name: DiRAC Training Team
 
 ---
 
-# Section 1
+# Introduction
 
-## First slide title
+## What you will learn in this module
 
-* A bullet point
+# MPI Recap
+
+## What is MPI?
+
+## Example MPI program
+
+# System design and performance considerations
+
+## GPU supercomputer topology diagram
+
+## NUMA, affinity and GPU distribution
+
+## Example GPU binding script
+
+## Distributing GPUs to local MPI ranks (CUDA/HIP)
+
+## Distributing GPUs to local MPI ranks (OpenMP)
+
+## Process mapping diagram
+
+## Other ways of distributing
+
+<!-- Multiple MPI ranks per GPU -->
+<!-- OpenMP threading + GPU offloading -->
+
+# GPU-aware MPI
+
+## What is GPU-aware MPI?
+
+<!-- Also mention GPU support required in MPI implementation -->
+
+## Passing GPU pointers to MPI (CUDA/HIP)
+
+## Passing GPU pointers to MPI (OpenMP)
+
+## How to build GPU-aware MPI programs
+
+<!-- Mention both CUDA/HIP and OpenMP  -->
+
+## What's happening under the hood?
+
+## No GPU-aware MPI
+
+## GPU-aware MPI without P2P/RDMA
+
+## GPU-aware MPI with P2P/RDMA
+
+## Optimisations, tips and tricks
+
+<!-- Packing and unpacking kernels -->
+<!-- Remove MPI derived datatypes -->
+<!-- Non-blocking communication -->
+<!-- Asynchronous kernels -->
+
+## Example: Jacobi solver
+
+## Example: Domain decomposition
+
+# Exercise
