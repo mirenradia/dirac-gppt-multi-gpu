@@ -13,7 +13,7 @@
 <link href="slides_files/libs/quarto-contrib/grid-no-htext-1.0.0/grid_no_htext.css" rel="stylesheet"><meta charset="utf-8">
   <meta name="generator" content="quarto-1.10.18">
 
-  <title>Template Presentation</title>
+  <title>Multi-GPU Parallelism</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
@@ -137,8 +137,8 @@
     <div class="slides">
 
 <section id="title-slide" class="quarto-title-block center">
-  <h1 class="title">Template Presentation</h1>
-  <p class="subtitle">Event name</p>
+  <h1 class="title">Multi-GPU Parallelism</h1>
+  <p class="subtitle">DiRAC GPU Performance Portability Workshop</p>
 
 <div class="quarto-title-authors">
 <div class="quarto-title-author">
@@ -149,20 +149,111 @@ Miren Radia
             University of Cambridge
           </p>
     </div>
+<div class="quarto-title-author">
+<div class="quarto-title-author-name">
+Jamie Quinn
+</div>
+        <p class="quarto-title-affiliation">
+            DiRAC Training Team
+          </p>
+    </div>
 </div>
 
-  <p class="date">Invalid Date</p>
+  <p class="date">Wednesday 16 September 2026</p>
 </section>
 <section>
-<section id="section-1" class="title-slide slide level1 center">
-<h1>Section 1</h1>
+<section id="introduction" class="title-slide slide level1 center">
+<h1>Introduction</h1>
 
 </section>
-<section id="first-slide-title" class="slide level2">
-<h2>First slide title</h2>
-<ul>
-<li>A bullet point</li>
-</ul>
+<section id="what-you-will-learn-in-this-module" class="slide level2">
+<h2>What you will learn in this module</h2>
+</section></section>
+<section>
+<section id="mpi-recap" class="title-slide slide level1 center">
+<h1>MPI Recap</h1>
+
+</section>
+<section id="what-is-mpi" class="slide level2">
+<h2>What is MPI?</h2>
+</section>
+<section id="example-mpi-program" class="slide level2">
+<h2>Example MPI program</h2>
+</section></section>
+<section>
+<section id="system-design-and-performance-considerations" class="title-slide slide level1 center">
+<h1>System design and performance considerations</h1>
+
+</section>
+<section id="gpu-supercomputer-topology-diagram" class="slide level2">
+<h2>GPU supercomputer topology diagram</h2>
+</section>
+<section id="numa-affinity-and-gpu-distribution" class="slide level2">
+<h2>NUMA, affinity and GPU distribution</h2>
+</section>
+<section id="example-gpu-binding-script" class="slide level2">
+<h2>Example GPU binding script</h2>
+</section>
+<section id="distributing-gpus-to-local-mpi-ranks-cudahip" class="slide level2">
+<h2>Distributing GPUs to local MPI ranks (CUDA/HIP)</h2>
+</section>
+<section id="distributing-gpus-to-local-mpi-ranks-openmp" class="slide level2">
+<h2>Distributing GPUs to local MPI ranks (OpenMP)</h2>
+</section>
+<section id="process-mapping-diagram" class="slide level2">
+<h2>Process mapping diagram</h2>
+</section>
+<section id="other-ways-of-distributing" class="slide level2">
+<h2>Other ways of distributing</h2>
+<!-- Multiple MPI ranks per GPU -->
+<!-- OpenMP threading + GPU offloading -->
+</section></section>
+<section>
+<section id="gpu-aware-mpi" class="title-slide slide level1 center">
+<h1>GPU-aware MPI</h1>
+
+</section>
+<section id="what-is-gpu-aware-mpi" class="slide level2">
+<h2>What is GPU-aware MPI?</h2>
+<!-- Also mention GPU support required in MPI implementation -->
+</section>
+<section id="passing-gpu-pointers-to-mpi-cudahip" class="slide level2">
+<h2>Passing GPU pointers to MPI (CUDA/HIP)</h2>
+</section>
+<section id="passing-gpu-pointers-to-mpi-openmp" class="slide level2">
+<h2>Passing GPU pointers to MPI (OpenMP)</h2>
+</section>
+<section id="how-to-build-gpu-aware-mpi-programs" class="slide level2">
+<h2>How to build GPU-aware MPI programs</h2>
+<!-- Mention both CUDA/HIP and OpenMP  -->
+</section>
+<section id="whats-happening-under-the-hood" class="slide level2">
+<h2>What’s happening under the hood?</h2>
+</section>
+<section id="no-gpu-aware-mpi" class="slide level2">
+<h2>No GPU-aware MPI</h2>
+</section>
+<section id="gpu-aware-mpi-without-p2prdma" class="slide level2">
+<h2>GPU-aware MPI without P2P/RDMA</h2>
+</section>
+<section id="gpu-aware-mpi-with-p2prdma" class="slide level2">
+<h2>GPU-aware MPI with P2P/RDMA</h2>
+</section>
+<section id="optimisations-tips-and-tricks" class="slide level2">
+<h2>Optimisations, tips and tricks</h2>
+<!-- Packing and unpacking kernels -->
+<!-- Remove MPI derived datatypes -->
+<!-- Non-blocking communication -->
+<!-- Asynchronous kernels -->
+</section>
+<section id="example-jacobi-solver" class="slide level2">
+<h2>Example: Jacobi solver</h2>
+</section>
+<section id="example-domain-decomposition" class="slide level2">
+<h2>Example: Domain decomposition</h2>
+</section></section>
+<section id="exercise" class="title-slide slide level1 center">
+<h1>Exercise</h1>
 
 <div class="reveal-header">
 <div class="header-logo">
@@ -178,7 +269,7 @@ Miren Radia
 <p> </p>
 </div>
 </div>
-</section></section>
+</section>
     </div>
   <div class="quarto-auto-generated-content" style="display: none;">
 <div class="footer footer-default">
