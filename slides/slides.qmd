@@ -33,13 +33,87 @@ authors:
 
 # Introduction
 
-## What you will learn in this module
+## What we will cover
+
+* [Very brief] recap of the Message Passing Interface (MPI)
+* The design of GPU supercomputers and how to distribute work across multiple
+  GPUs
+* GPU-aware MPI
+* Optimization techniques to improve performance of multi-GPU applications
 
 # MPI Recap
 
-## What is MPI?
+## What is MPI? {.smaller}
 
-## Example MPI program
+* The Message Passing Interface (MPI) is a *standard* for distributed memory
+  parallel programming.
+* It defines an application programming interface (API) to exchange messages
+  between processes that don't [necessarily] share memory for C and Fortran:
+  * Point to point communication e.g. `MPI_Send`, `MPI_Recv`
+  * Collective communication e.g. `MPI_Bcast`, `MPI_Reduce`, `MPI_Alltoall`
+* Third-party support for other languages e.g. Python (mpi4py) and Julia
+  (MPI.jl)
+* Version 5.0 of the standard was released on 5 June 2025 and defined ABI
+  compatibility between MPI implementations allowing users to switch between
+  implementations without recompiling their code[^1].
+* Various different implementations e.g.:
+  * Open MPI based: Open MPI, Nvidia HPC-X
+  * MPICH based: MPICH, Intel MPI, Cray MPI, MVAPICH
+
+[^1]: Currently only MPICH v5.0+ has support for this but older MPICH-based
+implementations have had ABI compatibility between each other for a while.
+
+
+## Example MPI program (C++)
+
+```cpp
+#include <mpi.h>
+#include <iostream>
+
+int main(int argc, char* argv[])
+{
+    MPI_Init(&argc, &argv);
+
+    int world_size;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+    int world_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+
+    std::cout << "Hello from rank " << world_rank << " of "
+              << world_size << std::endl;
+
+    MPI_Finalize();
+}
+```
+
+## Example MPI program (Fortran)
+
+```fortran
+program hello_mpi
+  use mpi_f08
+  implicit none
+
+  integer :: world_size, world_rank
+
+  call MPI_Init()
+  call MPI_Comm_size(MPI_COMM_WORLD, world_size)
+  call MPI_Comm_rank(MPI_COMM_WORLD, world_rank)
+
+  print *, "Hello from rank ", world_rank, " of ", world_size
+
+  call MPI_Finalize()
+end program hello_mpi
+```
+
+## MPI references
+
+* [MPI Forum Documentation](https://www.mpi-forum.org/docs/)
+* [Open MPI Documentation](https://docs.open-mpi.org)
+* [MPICH Man Pages](https://www.mpich.org/static/docs/latest/)
+* [Rookie HPC MPI Docs](https://rookiehpc.org/mpi/index.html)[^1]
+
+[^1]: Some newer/more advanced MPI routines are missing here.
 
 # System design and work distribution
 
