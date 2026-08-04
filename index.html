@@ -10,7 +10,7 @@
 <script src="slides_files/libs/quarto-contrib/reveal-header-1.0.0/add_header.js" defer="true"></script>
 <link href="slides_files/libs/quarto-contrib/reveal-header-1.0.0/add_header.css" rel="stylesheet">
 <script src="slides_files/libs/quarto-contrib/sc-sb-title-1.0.0/sc_sb_title.js" defer="true"></script>
-<link href="slides_files/libs/quarto-contrib/grid-no-htext-1.0.0/grid_no_htext.css" rel="stylesheet"><meta charset="utf-8">
+<link href="slides_files/libs/quarto-contrib/grid-htext-1.0.0/grid_htext.css" rel="stylesheet"><meta charset="utf-8">
   <meta name="generator" content="quarto-1.10.18">
 
   <title>Multi-GPU Parallelism</title>
@@ -181,18 +181,12 @@ Jamie Quinn
 <h2>Example MPI program</h2>
 </section></section>
 <section>
-<section id="system-design-and-performance-considerations" class="title-slide slide level1 center">
-<h1>System design and performance considerations</h1>
+<section id="system-design-and-work-distribution" class="title-slide slide level1 center">
+<h1>System design and work distribution</h1>
 
 </section>
 <section id="gpu-supercomputer-topology-diagram" class="slide level2">
 <h2>GPU supercomputer topology diagram</h2>
-</section>
-<section id="numa-affinity-and-gpu-distribution" class="slide level2">
-<h2>NUMA, affinity and GPU distribution</h2>
-</section>
-<section id="example-gpu-binding-script" class="slide level2">
-<h2>Example GPU binding script</h2>
 </section>
 <section id="distributing-gpus-to-local-mpi-ranks-cudahip" class="slide level2">
 <h2>Distributing GPUs to local MPI ranks (CUDA/HIP)</h2>
@@ -239,41 +233,83 @@ Jamie Quinn
 <section id="gpu-aware-mpi-with-p2prdma" class="slide level2">
 <h2>GPU-aware MPI with P2P/RDMA</h2>
 </section>
-<section id="optimisations-tips-and-tricks" class="slide level2">
-<h2>Optimisations, tips and tricks</h2>
-<!-- Packing and unpacking kernels -->
-<!-- Remove MPI derived datatypes -->
-<!-- Non-blocking communication -->
-<!-- Asynchronous kernels -->
-</section>
 <section id="example-jacobi-solver" class="slide level2">
 <h2>Example: Jacobi solver</h2>
 </section>
 <section id="example-domain-decomposition" class="slide level2">
 <h2>Example: Domain decomposition</h2>
+</section>
+<section id="exercise-jacobi-solver" class="slide level2">
+<h2>Exercise: Jacobi solver</h2>
+</section>
+<section id="exercise-solution" class="slide level2">
+<h2>Exercise: Solution</h2>
 </section></section>
-<section id="exercise" class="title-slide slide level1 center">
-<h1>Exercise</h1>
+<section>
+<section id="optimization-techniques" class="title-slide slide level1 center">
+<h1>Optimization techniques</h1>
+
+</section>
+<section id="why-optimization-is-more-important-on-gpus" class="slide level2">
+<h2>Why optimization is <em>more</em> important on GPUs</h2>
+</section>
+<section id="recap-node-architecture-and-system-topology" class="slide level2">
+<h2>Recap: Node architecture and system topology</h2>
+</section>
+<section id="numa-affinity-and-gpu-distribution" class="slide level2">
+<h2>NUMA, affinity and GPU distribution</h2>
+</section>
+<section id="example-gpu-binding-script" class="slide level2">
+<h2>Example GPU binding script</h2>
+</section>
+<section id="exercise-binding-scripts" class="slide level2">
+<h2>Exercise: Binding scripts</h2>
+</section>
+<section id="packing-kernels" class="slide level2">
+<h2>Packing kernels</h2>
+<!-- Remove MPI derived datatypes -->
+<!-- Mention asynchronous kernels -->
+</section>
+<section id="non-blocking-mpi-communication" class="slide level2">
+<h2>Non-blocking MPI communication</h2>
+</section>
+<section id="collective-operations" class="slide level2">
+<h2>Collective operations</h2>
+</section>
+<section id="exercise-packing-kernels-and-non-blocking-communication" class="slide level2">
+<h2>Exercise: Packing kernels and non-blocking communication</h2>
+</section>
+<section id="exercise-solution-1" class="slide level2">
+<h2>Exercise Solution</h2>
+</section>
+<section id="overlapping-communication-and-computation" class="slide level2">
+<h2>Overlapping communication and computation</h2>
+</section>
+<section id="exercise-overlapping-communication-and-computation" class="slide level2">
+<h2>Exercise: Overlapping communication and computation</h2>
+</section>
+<section id="exercise-solution-2" class="slide level2">
+<h2>Exercise: Solution</h2>
 
 <div class="reveal-header">
 <div class="header-logo">
-<img data-src="">
+<img data-src="media/dirac_logo.png">
 </div>
 <div class="sc-title">
 <p> </p>
 </div>
 <div class="header-text">
-<p> </p>
+<p>https://tinyurl.com/dirac-multi-gpu</p>
 </div>
 <div class="sb-title">
 <p> </p>
 </div>
 </div>
-</section>
+</section></section>
     </div>
   <div class="quarto-auto-generated-content" style="display: none;">
 <div class="footer footer-default">
-
+<p>DiRAC GPU Performance Portability Workshop</p>
 </div>
 </div></div>
 
