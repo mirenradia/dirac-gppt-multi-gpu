@@ -123,6 +123,24 @@ end program hello_mpi
 
 ## Distributing GPUs to local MPI ranks (CUDA/HIP)
 
+For now assume one MPI process per GPU and assign in a round robin fashion:
+
+```cpp
+int world_rank;
+MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+MPI_Comm local_comm;
+MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, world_rank,
+                    MPI_INFO_NULL, &local_comm);
+
+int local_rank = -1;
+MPI_Comm_rank(local_comm, &local_rank);
+MPI_Comm_free(&local_comm);
+
+int num_devs = 0;
+cudaGetDeviceCount(&num_devs);
+cudaSetDevice(local_rank % num_devs);
+```
+
 ## Distributing GPUs to local MPI ranks (OpenMP)
 
 ## Process mapping diagram
