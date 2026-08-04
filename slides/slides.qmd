@@ -119,6 +119,8 @@ end program hello_mpi
 
 ## GPU supercomputer topology diagram
 
+![](media/gpu-supercomputer-topology.svg){width=100% fig-alt="Topology of a multi-node GPU supercomputer"}
+
 ## Distributing GPUs to local MPI ranks (CUDA/HIP)
 
 ## Distributing GPUs to local MPI ranks (OpenMP)
