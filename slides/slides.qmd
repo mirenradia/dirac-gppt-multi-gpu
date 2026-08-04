@@ -116,3 +116,9 @@ authors:
 ## Exercise: Overlapping communication and computation
 
 ## Exercise: Solution
+
+# Conclusion
+
+## Summary
+
+## Additional resources and references
