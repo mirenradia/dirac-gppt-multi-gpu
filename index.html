@@ -322,6 +322,20 @@ Jamie Quinn
 <img data-src="media/gpu-supercomputer-topology.svg" style="width:100.0%" alt="Topology of a multi-node GPU supercomputer" class="r-stretch"></section>
 <section id="distributing-gpus-to-local-mpi-ranks-cudahip" class="slide level2">
 <h2>Distributing GPUs to local MPI ranks (CUDA/HIP)</h2>
+<p>For now assume one MPI process per GPU and assign in a round robin fashion:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode numberSource cpp number-lines code-with-copy"><code class="sourceCode cpp"><span id="cb3-1"><a href="" aria-label="1"></a><span class="dt">int</span> world_rank<span class="op">;</span></span>
+<span id="cb3-2"><a href="" aria-label="2"></a>MPI_Comm_rank<span class="op">(</span>MPI_COMM_WORLD<span class="op">,</span> <span class="op">&amp;</span>world_rank<span class="op">);</span></span>
+<span id="cb3-3"><a href="" aria-label="3"></a>MPI_Comm local_comm<span class="op">;</span></span>
+<span id="cb3-4"><a href="" aria-label="4"></a><span class="dt">MPI_Comm_split_type</span><span class="op">(</span>MPI_COMM_WORLD<span class="op">,</span> MPI_COMM_TYPE_SHARED<span class="op">,</span> world_rank<span class="op">,</span></span>
+<span id="cb3-5"><a href="" aria-label="5"></a>                    MPI_INFO_NULL<span class="op">,</span> <span class="op">&amp;</span>local_comm<span class="op">);</span></span>
+<span id="cb3-6"><a href="" aria-label="6"></a></span>
+<span id="cb3-7"><a href="" aria-label="7"></a><span class="dt">int</span> local_rank <span class="op">=</span> <span class="op">-</span><span class="dv">1</span><span class="op">;</span></span>
+<span id="cb3-8"><a href="" aria-label="8"></a>MPI_Comm_rank<span class="op">(</span>local_comm<span class="op">,</span> <span class="op">&amp;</span>local_rank<span class="op">);</span></span>
+<span id="cb3-9"><a href="" aria-label="9"></a>MPI_Comm_free<span class="op">(&amp;</span>local_comm<span class="op">);</span></span>
+<span id="cb3-10"><a href="" aria-label="10"></a></span>
+<span id="cb3-11"><a href="" aria-label="11"></a><span class="dt">int</span> num_devs <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb3-12"><a href="" aria-label="12"></a>cudaGetDeviceCount<span class="op">(&amp;</span>num_devs<span class="op">);</span></span>
+<span id="cb3-13"><a href="" aria-label="13"></a>cudaSetDevice<span class="op">(</span>local_rank <span class="op">%</span> num_devs<span class="op">);</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="distributing-gpus-to-local-mpi-ranks-openmp" class="slide level2">
 <h2>Distributing GPUs to local MPI ranks (OpenMP)</h2>
