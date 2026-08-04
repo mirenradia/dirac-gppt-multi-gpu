@@ -7,6 +7,9 @@ from: markdown+emoji
 format:
   clean-revealjs:
     embed-resources: false
+    header-logo: media/dirac_logo.png
+    footer: "DiRAC GPU Performance Portability Workshop"
+    header: "https://tinyurl.com/dirac-multi-gpu"
     transition: slide
     sc-sb-title: true
     auto-play-media: true
@@ -38,13 +41,9 @@ authors:
 
 ## Example MPI program
 
-# System design and performance considerations
+# System design and work distribution
 
 ## GPU supercomputer topology diagram
-
-## NUMA, affinity and GPU distribution
-
-## Example GPU binding script
 
 ## Distributing GPUs to local MPI ranks (CUDA/HIP)
 
@@ -79,15 +78,41 @@ authors:
 
 ## GPU-aware MPI with P2P/RDMA
 
-## Optimisations, tips and tricks
-
-<!-- Packing and unpacking kernels -->
-<!-- Remove MPI derived datatypes -->
-<!-- Non-blocking communication -->
-<!-- Asynchronous kernels -->
-
 ## Example: Jacobi solver
 
 ## Example: Domain decomposition
 
-# Exercise
+## Exercise: Jacobi solver
+
+## Exercise: Solution
+
+# Optimization techniques
+
+## Why optimization is *more* important on GPUs
+
+## Recap: Node architecture and system topology
+
+## NUMA, affinity and GPU distribution
+
+## Example GPU binding script
+
+## Exercise: Binding scripts
+
+## Packing kernels
+
+<!-- Remove MPI derived datatypes -->
+<!-- Mention asynchronous kernels -->
+
+## Non-blocking MPI communication
+
+## Collective operations
+
+## Exercise: Packing kernels and non-blocking communication
+
+## Exercise Solution
+
+## Overlapping communication and computation
+
+## Exercise: Overlapping communication and computation
+
+## Exercise: Solution
