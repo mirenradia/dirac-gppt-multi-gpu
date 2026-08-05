@@ -36,8 +36,7 @@ authors:
 ## What we will cover
 
 * [Very brief] recap of the Message Passing Interface (MPI)
-* The design of GPU supercomputers and how to distribute work across multiple
-  GPUs
+* How to distribute work to GPUs using MPI
 * GPU-aware MPI
 * Optimization techniques to improve performance of multi-GPU applications
 
@@ -119,6 +118,8 @@ end program hello_mpi
 
 ## Mapping MPI processes to GPUs {transition="slide-in none-out"}
 
+Best practice: one MPI process per GPU.
+
 ```{=html}
 <svg class="process-mapping-animation" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 500" role="img" aria-label="Mapping of MPI ranks to GPUs on a multi-node GPU supercomputer">
   <style>
@@ -176,6 +177,8 @@ end program hello_mpi
 
 ## Mapping MPI processes to GPUs {#process-mapping-animation-end transition="none-in slide-out"}
 
+Best practice: one MPI process per GPU.
+
 ```{=html}
 <svg class="process-mapping-animation process-mapping-animation-end" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 500" role="img" aria-label="Mapping of MPI ranks to GPUs on a multi-node GPU supercomputer">
   <style>
@@ -229,8 +232,6 @@ window.addEventListener("load", () => {
 
 ## Distributing GPUs to local MPI ranks (CUDA/HIP)
 
-For now assume one MPI process per GPU and assign in a round robin fashion:
-
 ```cpp
 int world_rank;
 MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
@@ -267,28 +268,131 @@ num_devs = omp_get_num_devices()
 call omp_set_default_device(mod(local_rank, num_devs))
 ```
 
-## Other ways of distributing
+## Why one MPI process per GPU? {.smaller}
 
-<!-- Multiple MPI ranks per GPU -->
-<!-- OpenMP threading + GPU offloading -->
+* Why not more GPUs per MPI process?
+  * Each GPU has its own memory space and it makes sense to use MPI to
+    communicate data between GPUs both intra-node and inter-node.
+  * You would need to handle memory transfers between GPUs in the same MPI
+    process manually (e.g. using CUDA/HIP or OpenMP) so would have two different
+    methods of communicating data between GPUs.
+* Why not more MPI processes per GPU?
+  * This is possible if the work of a single MPI process is too small to fully
+    utilize a whole GPU.
+  * On Nvidia GPUs, to use multiple MPI processes per GPU efficiently, you need
+    to use the Multi-Process Service (MPS) to reduce context switching
+    overheads (check docs/HPC user support if system has MPS available).
+  * On AMD GPUs, this is not necessary.
+  * Best to start with one MPI process per GPU and only try more if necessary.
+* Some GPUs (e.g. AMD MI250X and Intel Data Center GPU Max 1550/PVC) are
+  essentially two GPUs fused together so it is often best here to use two MPI
+  processes per GPU here.
 
 # GPU-aware MPI
 
-## What is GPU-aware MPI?
+## What is GPU-aware MPI? {.smaller}
 
-<!-- Also mention GPU support required in MPI implementation -->
+* GPU-aware MPI implementations allow you to pass GPU pointers directly to MPI
+  routines without having to copy data to host memory first.
+* Often referred to as "CUDA-aware MPI" for Nvidia GPUs.
+* Not part of the standard so implementation-dependent.
+  * If available it is usually optional so you need to check if implementation
+    has been built with it.
+  * Should be available on all GPU HPC systems.
+  * Best practice: keep copying data to host memory as a fallback.
+* Open MPI is the most common implementation that can be built with GPU support
+  for Nvidia or AMD GPUs (usually provided by the lower level UCX library).
+  We will focus on it from now on.
+* Consult system documentation for details: you may need to set environment
+  variables to enable support:
+  * `MPICH_GPU_SUPPORT_ENABLED=1` for MPICH and Cray MPI.
+  * `I_MPI_OFFLOAD=1` for Intel MPI.
+  * `MV2_USE_CUDA=1` or `MV2_USE_ROCM=1` for MVAPICH2.
 
 ## Passing GPU pointers to MPI (CUDA/HIP)
 
+With CUDA/HIP, it's as simple as just passing a pointer to GPU memory to an MPI
+routine:
+
+```{.cpp code-line-numbers="|3|10"}
+size_t size = 1024;
+double* d_ptr;
+cudaMalloc(&d_ptr, size * sizeof(double));
+
+<some CUDA kernel that fills d_ptr with data>
+
+int dest_rank = 1;
+int tag = 0
+
+MPI_Send(d_ptr, size, MPI_DOUBLE, dest_rank, tag, MPI_COMM_WORLD);
+```
+
 ## Passing GPU pointers to MPI (OpenMP)
 
-## How to build GPU-aware MPI programs
+With OpenMP, it's necessary to add the following directive to ensure the GPU
+pointer is passed:
+
+```{.fortran code-line-numbers="|10"}
+integer, parameter :: size = 1024
+double precision, allocatable :: d_array(:)
+integer :: dest_rank = 1, tag = 0
+
+allocate(d_array(size))
+!$omp target enter data map(alloc: d_array)
+
+<some OpenMP kernel that fills d_array with data>
+
+!$omp target data use_device_ptr(d_array)
+call MPI_Send(d_array, size, MPI_DOUBLE, dest_rank, tag, MPI_COMM_WORLD)
+!$omp end target data
+```
+
+## How to build GPU-aware MPI programs {.smaller}
+
+All examples below are for Open MPI but can use other MPI implementations by
+suitably replacing `OMPI_*` environment variables.
 
 <!-- Mention both CUDA/HIP and OpenMP  -->
+* CUDA C++ (with `g++` as host compiler):
+  ```{.bash code-line-numbers="false"}
+  OMPI_CXX=nvcc mpicxx --ccbin=g++ --forward-unknown-to-host-compiler <nvcc and g++ flags> \
+      -o my_mpi_cuda_program my_mpi_cuda_progam.cpp
+  ```
 
-## What's happening under the hood?
+* HIP C++: Set `OMPI_CXX=hipcc` or `OMPI_CXX=amdclang++` and then use `mpicxx`
+  as the compiler e.g.:
+  ```{.bash code-line-numbers="false"}
+  OMPI_CXX=amdclang++ mpicxx -x hip --offload-arch=<gpu arch> -o my_mpi_hip_program my_mpi_hip_program.cpp
+  ```
+
+* Nvidia Fortran compiler with OpenMP:
+  ```{.bash code-line-numbers="false"}
+  OMPI_FC=nvfortran mpifort -mp=gpu -gpu=<gpu arch> -o my_mpi_openmp_program my_mpi_openmp_program.f90
+  ```
+
+* AMD Flang compiler with OpenMP:
+  ```{.bash code-line-numbers="false"}
+  OMPI_FC=amdflang mpifort -fopenmp  -fopenmp-targets=<gpu arch> -o my_mpi_openmp_program my_mpi_openmp_program.f90
+  ```
+
+## What's happening under the hood? {.smaller}
+
+* Simple and naive GPU-aware implementation (or fallback):
+  * MPI implementation detects GPU pointer and copies data to host memory before
+    sending it over the network.
+  * On the receiving side, data is copied from host memory to GPU memory.
+* Most GPU-aware MPI implementations use a more efficient approach that allows
+  data to be sent directly between GPU memory without going through the host:
+  * For GPUs on the same node, this can be done using peer-to-peer (P2P) memory
+    access.
+  * For GPUs on different nodes, this can done using remote direct memory access
+    (RDMA) over the network.
+* Nvidia: GPUDirect P2P and GPUDirect RDMA (GDR)
+* AMD: RDMA and P2P are part of the AMD kernel driver.
 
 ## No GPU-aware MPI
+
+
 
 ## GPU-aware MPI without P2P/RDMA
 
