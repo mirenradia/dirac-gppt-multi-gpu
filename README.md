@@ -5,6 +5,13 @@ the [DiRAC GPU Performance Portability
 Workshop](https://dirac.ac.uk/training_events/gpu-performance-portability-workshop-expression-of-interest/)
 taking place in Nottingham on 15-17 September 2026.
 
+## Acknowledgements
+
+This course is derived from parts of the [ISC/SC Tutorial: Efficient Distributed
+GPU Programming for Exascale](https://github.com/FZJ-JSC/tutorial-multi-gpu). We
+are thankful to the Jülich Supercomputing Centre (JSC) and Nvidia for developing
+these materials.
+
 ## License
 
 The source code (including SVG images) in this repository is licensed under the
