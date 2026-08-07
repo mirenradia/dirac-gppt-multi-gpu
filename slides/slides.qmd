@@ -322,9 +322,59 @@ directly between GPU memory without going through host memory.
 
 {{< include includes/communication-gpu-aware-p2p-rdma.qmd >}}
 
-## Example: Jacobi solver
+## Example: Jacobi solver {.smaller}
+
+* This example solves the 2D Laplace equation in a rectangle:
+  $$
+  \nabla^2 u = 0\text{ on }\Omega = (0, L_x) \times (0, L_y)
+  $$
+* We use Dirichlet boundary conditions on the left/right boundaries and periodic
+  boundary conditions on the top/bottom boundaries:
+  $$
+  u(0, y) = u_0, \quad u(L_x, y) = u_1, \quad u(x, 0) = u(x, L_y)
+  $$
+* We discretize the domain using a uniform grid and use the Jacobi method to
+  iteratively solve for $u$ at each grid point. At iteration $k$, the value of
+  $u$ at grid point $(x_i,y_j)$ is computed as follows:
+  $$
+  u_{i,j}^{(k+1)} = \frac{1}{4} \left( u_{i-1,j}^{(k)} + u_{i+1,j}^{(k)} +
+                    u_{i,j-1}^{(k)} + u_{i,j+1}^{(k)} \right)
+  $$
+
+## Example Jacobi solver (cont.)
+
+In pseudocode, it's roughly:
+
+```
+while not converged:
+    for each grid point (i,j):
+        u_new[i,j] = 0.25 * (u[i-1,j] + u[i+1,j] + u[i,j-1] + u[i,j+1])
+
+    # Apply periodic boundary conditions
+    for each grid point i
+        u_new[i,0] = u_new[i, ny-1]
+        u_new[i,ny] = u_new[i, 1]
+
+    swap(u, u_new)
+
+    next iteration
+```
 
 ## Example: Domain decomposition
+
+For simplicity, we will decompose the domain in the $y$ direction only:
+
+::: columns
+::: {.column width="60%"}
+![](media/domain-full.svg){width=40% fig-align="center" fig-alt="Full 2D Jacobi domain before decomposition"}
+
+* In a realistic scenario, we would decompose the domain in both $x$ and $y$ directions
+  to reduce the amount of communication between MPI processes.
+:::
+::: {.column width="30%"}
+![](media/domain-decomp-y.svg){width=100% fig-alt="Domain decomposed into horizontal slabs with neighbour halo communication"}
+:::
+:::
 
 ## Exercise: Jacobi solver
 
