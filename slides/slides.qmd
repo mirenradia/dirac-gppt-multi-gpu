@@ -242,7 +242,7 @@ MPI_Send(d_ptr, size, MPI_DOUBLE, dest_rank, tag, MPI_COMM_WORLD);
 With OpenMP, it's necessary to add the following directive to ensure the GPU
 pointer is passed:
 
-```{.fortran code-line-numbers="|10"}
+```{.fortran code-line-numbers="|10,12"}
 integer, parameter :: size = 1024
 double precision, allocatable :: d_array(:)
 integer :: dest_rank = 1, tag = 0
@@ -252,7 +252,7 @@ allocate(d_array(size))
 
 <some OpenMP kernel that fills d_array with data>
 
-!$omp target data use_device_ptr(d_array)
+!$omp target data use_device_addr(d_array)
 call MPI_Send(d_array, size, MPI_DOUBLE, dest_rank, tag, MPI_COMM_WORLD)
 !$omp end target data
 ```
@@ -265,7 +265,7 @@ suitably replacing `OMPI_*` environment variables.
 <!-- Mention both CUDA/HIP and OpenMP  -->
 * CUDA C++ (with `g++` as host compiler):
   ```{.bash code-line-numbers="false"}
-  OMPI_CXX=nvcc mpicxx --ccbin=g++ --forward-unknown-to-host-compiler <nvcc and g++ flags> \
+  OMPI_CXX=nvcc mpicxx -x cu --ccbin=g++ --forward-unknown-to-host-compiler <nvcc and g++ flags> \
       -o my_mpi_cuda_program my_mpi_cuda_progam.cpp
   ```
 
