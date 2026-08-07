@@ -1,3 +1,12 @@
+# Quarto slides
 *.html
 slides_files/
 slides/mathjax-config.js
+
+# Build artifacts
+*.ex
+*.mod
+
+# Profiles and logs
+*.nsys-rep
+*.compute-sanitizer.log
