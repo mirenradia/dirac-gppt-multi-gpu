@@ -532,7 +532,7 @@ window.addEventListener("load", () => {
 <section id="passing-gpu-pointers-to-mpi-openmp" class="slide level2">
 <h2>Passing GPU pointers to MPI (OpenMP)</h2>
 <p>With OpenMP, it’s necessary to add the following directive to ensure the GPU pointer is passed:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" data-code-line-numbers="|10"><pre class="sourceCode numberSource fortran number-lines code-with-copy"><code class="sourceCode fortranfixed"><span id="cb7-1"><a href="" aria-label="1"></a><span class="dt">integer</span>, <span class="dt">parameter</span> <span class="dt">::</span> <span class="fu">size</span> <span class="kw">=</span> <span class="dv">1024</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" data-code-line-numbers="|10,12"><pre class="sourceCode numberSource fortran number-lines code-with-copy"><code class="sourceCode fortranfixed"><span id="cb7-1"><a href="" aria-label="1"></a><span class="dt">integer</span>, <span class="dt">parameter</span> <span class="dt">::</span> <span class="fu">size</span> <span class="kw">=</span> <span class="dv">1024</span></span>
 <span id="cb7-2"><a href="" aria-label="2"></a><span class="dt">double precision</span>, <span class="dt">allocatable</span> <span class="dt">::</span> d_array(:)</span>
 <span id="cb7-3"><a href="" aria-label="3"></a><span class="dt">integer</span> <span class="dt">::</span> dest_rank <span class="kw">=</span> <span class="dv">1</span>, tag <span class="kw">=</span> <span class="dv">0</span></span>
 <span id="cb7-4"><a href="" aria-label="4"></a></span>
@@ -541,7 +541,7 @@ window.addEventListener("load", () => {
 <span id="cb7-7"><a href="" aria-label="7"></a></span>
 <span id="cb7-8"><a href="" aria-label="8"></a><span class="op">&lt;</span>some OpenMP kernel that fills d_array with data<span class="op">&gt;</span></span>
 <span id="cb7-9"><a href="" aria-label="9"></a></span>
-<span id="cb7-10"><a href="" aria-label="10"></a><span class="co">!$omp target data use_device_ptr(d_array)</span></span>
+<span id="cb7-10"><a href="" aria-label="10"></a><span class="co">!$omp target data use_device_addr(d_array)</span></span>
 <span id="cb7-11"><a href="" aria-label="11"></a><span class="co">call MPI_Send(d_array, size, MPI_DOUBLE, dest_rank, tag, MPI_COMM_WORLD)</span></span>
 <span id="cb7-12"><a href="" aria-label="12"></a><span class="co">!$omp end target data</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -551,7 +551,7 @@ window.addEventListener("load", () => {
 <!-- Mention both CUDA/HIP and OpenMP  -->
 <ul>
 <li><p>CUDA C++ (with <code>g++</code> as host compiler):</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="" aria-hidden="true" tabindex="-1"></a><span class="va">OMPI_CXX</span><span class="op">=</span>nvcc <span class="ex">mpicxx</span> <span class="at">--ccbin</span><span class="op">=</span>g++ <span class="at">--forward-unknown-to-host-compiler</span> <span class="op">&lt;</span>nvcc and g++ flags<span class="op">&gt;</span> <span class="dt">\</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="" aria-hidden="true" tabindex="-1"></a><span class="va">OMPI_CXX</span><span class="op">=</span>nvcc <span class="ex">mpicxx</span> <span class="at">-x</span> cu <span class="at">--ccbin</span><span class="op">=</span>g++ <span class="at">--forward-unknown-to-host-compiler</span> <span class="op">&lt;</span>nvcc and g++ flags<span class="op">&gt;</span> <span class="dt">\</span></span>
 <span id="cb8-2"><a href="" aria-hidden="true" tabindex="-1"></a>    <span class="at">-o</span> my_mpi_cuda_program my_mpi_cuda_progam.cpp</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 <li><p>HIP C++: Set <code>OMPI_CXX=hipcc</code> or <code>OMPI_CXX=amdclang++</code> and then use <code>mpicxx</code> as the compiler e.g.:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="" aria-hidden="true" tabindex="-1"></a><span class="va">OMPI_CXX</span><span class="op">=</span>amdclang++ <span class="ex">mpicxx</span> <span class="at">-x</span> hip <span class="at">--offload-arch</span><span class="op">=&lt;</span>gpu arch<span class="op">&gt;</span> -o my_mpi_hip_program my_mpi_hip_program.cpp</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
@@ -580,6 +580,7 @@ window.addEventListener("load", () => {
 </section>
 <section id="no-gpu-aware-mpi" class="slide level2">
 <h2>No GPU-aware MPI</h2>
+<p>Without GPU-aware MPI, data must be copied to host memory. There is also some additional overhead in copying data to/from pinned memory.</p>
 <svg class="no-gpu-aware-animation" xmlns="http://www.w3.org/2000/svg" viewbox="0 0 1400 430" role="img" aria-label="Data travelling through host memory and network interfaces when MPI is not GPU-aware">
   <style>
     .no-gpu-aware-animation .box { stroke: #333; stroke-width: 1.5; rx: 4; }
@@ -670,6 +671,7 @@ window.addEventListener("load", () => {
 </section>
 <section id="gpu-aware-mpi-without-p2prdma" class="slide level2">
 <h2>GPU-aware MPI without P2P/RDMA</h2>
+<p>Even without P2P/RDMA, GPU-aware MPI is still more efficient than non-GPU-aware MPI as the MPI library can use lower-level optimizations to copy data between GPU and host memory.</p>
 <svg class="gpu-aware-no-p2p-animation" xmlns="http://www.w3.org/2000/svg" viewbox="0 0 1400 430" role="img" aria-label="GPU-aware MPI data travelling through host memory and network interfaces without peer-to-peer or RDMA">
   <style>
     .gpu-aware-no-p2p-animation .box { stroke: #333; stroke-width: 1.5; rx: 4; }
@@ -737,6 +739,7 @@ window.addEventListener("load", () => {
 </section>
 <section id="gpu-aware-mpi-with-p2prdma" class="slide level2">
 <h2>GPU-aware MPI with P2P/RDMA</h2>
+<p>GPU-aware MPI with P2P/RDMA is the most efficient as it allows data to be sent directly between GPU memory without going through host memory.</p>
 <svg class="gpu-aware-p2p-animation" xmlns="http://www.w3.org/2000/svg" viewbox="0 0 1400 430" role="img" aria-label="GPU-aware MPI data travelling directly between GPUs and network interfaces with peer-to-peer and RDMA">
   <style>
     .gpu-aware-p2p-animation .box { stroke: #333; stroke-width: 1.5; rx: 4; } .gpu-aware-p2p-animation .mem { fill: #a8d8ea; } .gpu-aware-p2p-animation .cpu { fill: #aa96da; } .gpu-aware-p2p-animation .gpu { fill: #fcbad3; } .gpu-aware-p2p-animation .nic { fill: #ffffd2; } .gpu-aware-p2p-animation .interconnect { fill: #d4f0f0; }
