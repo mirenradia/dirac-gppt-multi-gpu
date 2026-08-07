@@ -801,11 +801,53 @@ window.addEventListener("load", () => {
 });
 </script>
 </section>
-<section id="example-jacobi-solver" class="slide level2">
+<section id="example-jacobi-solver" class="slide level2 smaller">
 <h2>Example: Jacobi solver</h2>
+<ul>
+<li>This example solves the 2D Laplace equation in a rectangle: <span class="math display">\[
+\nabla^2 u = 0\text{ on }\Omega = (0, L_x) \times (0, L_y)
+\]</span></li>
+<li>We use Dirichlet boundary conditions on the left/right boundaries and periodic boundary conditions on the top/bottom boundaries: <span class="math display">\[
+u(0, y) = u_0, \quad u(L_x, y) = u_1, \quad u(x, 0) = u(x, L_y)
+\]</span></li>
+<li>We discretize the domain using a uniform grid and use the Jacobi method to iteratively solve for <span class="math inline">\(u\)</span> at each grid point. At iteration <span class="math inline">\(k\)</span>, the value of <span class="math inline">\(u\)</span> at grid point <span class="math inline">\((x_i,y_j)\)</span> is computed as follows: <span class="math display">\[
+u_{i,j}^{(k+1)} = \frac{1}{4} \left( u_{i-1,j}^{(k)} + u_{i+1,j}^{(k)} +
+                  u_{i,j-1}^{(k)} + u_{i,j+1}^{(k)} \right)
+\]</span></li>
+</ul>
+</section>
+<section id="example-jacobi-solver-cont." class="slide level2">
+<h2>Example Jacobi solver (cont.)</h2>
+<p>In pseudocode, it’s roughly:</p>
+<pre><code>while not converged:
+    for each grid point (i,j):
+        u_new[i,j] = 0.25 * (u[i-1,j] + u[i+1,j] + u[i,j-1] + u[i,j+1])
+
+    # Apply periodic boundary conditions
+    for each grid point i
+        u_new[i,0] = u_new[i, ny-1]
+        u_new[i,ny] = u_new[i, 1]
+
+    swap(u, u_new)
+
+    next iteration</code></pre>
 </section>
 <section id="example-domain-decomposition" class="slide level2">
 <h2>Example: Domain decomposition</h2>
+<p>For simplicity, we will decompose the domain in the <span class="math inline">\(y\)</span> direction only:</p>
+<div class="columns">
+<div class="column" style="width:60%;">
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="media/domain-full.svg" class="quarto-figure quarto-figure-center" style="width:40.0%" alt="Full 2D Jacobi domain before decomposition"></p>
+</figure>
+</div>
+<ul>
+<li>In a realistic scenario, we would decompose the domain in both <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> directions to reduce the amount of communication between MPI processes.</li>
+</ul>
+</div><div class="column" style="width:30%;">
+<p><img data-src="media/domain-decomp-y.svg" style="width:100.0%" alt="Domain decomposed into horizontal slabs with neighbour halo communication"></p>
+</div></div>
 </section>
 <section id="exercise-jacobi-solver" class="slide level2">
 <h2>Exercise: Jacobi solver</h2>
