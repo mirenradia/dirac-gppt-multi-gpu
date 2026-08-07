@@ -302,13 +302,23 @@ suitably replacing `OMPI_*` environment variables.
 
 ## No GPU-aware MPI
 
+Without GPU-aware MPI, data must be copied to host memory. There is also some
+additional overhead in copying data to/from pinned memory.
+
 {{< include includes/communication-no-gpu-aware-mpi.qmd >}}
 
 ## GPU-aware MPI without P2P/RDMA
 
+Even without P2P/RDMA, GPU-aware MPI is still more efficient than non-GPU-aware
+MPI as the MPI library can use lower-level optimizations to copy data between
+GPU and host memory.
+
 {{< include includes/communication-gpu-aware-no-p2p-rdma.qmd >}}
 
 ## GPU-aware MPI with P2P/RDMA
+
+GPU-aware MPI with P2P/RDMA is the most efficient as it allows data to be sent
+directly between GPU memory without going through host memory.
 
 {{< include includes/communication-gpu-aware-p2p-rdma.qmd >}}
 
