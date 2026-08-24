@@ -852,8 +852,78 @@ u_{i,j}^{(k+1)} = \frac{1}{4} \left( u_{i-1,j}^{(k)} + u_{i+1,j}^{(k)} +
 <section id="exercise-jacobi-solver" class="slide level2">
 <h2>Exercise: Jacobi solver</h2>
 </section>
-<section id="exercise-solution" class="slide level2">
-<h2>Exercise: Solution</h2>
+<section id="exercise-01-jacobi-solver" class="slide level2">
+<h2>Exercise 01: Jacobi solver</h2>
+<p>Use GPU-aware MPI to parallelize the Jacobi solvers across multiple GPUs. You will need to do the following:</p>
+<ol type="1">
+<li>Get the available GPU devices and use it and the local rank to set the active GPU for each process.</li>
+<li>Compute the top and bottom neighbours (recall: periodic BCs on top/bottom).</li>
+<li>Use <code>MPI_Sendrecv</code> with GPU-resident pointers/arrays to exchange data between the neighbors.</li>
+</ol>
+<p>You can either choose CUDA+C++ or OpenMP+Fortran. Further details are provided in the respective README files.</p>
+<p>There is an “advanced” extension task if you finish early.</p>
+</section>
+<section id="exercise-01-solution" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 01: Solution</h2>
+<h3 id="setting-the-active-gpu">Setting the active GPU</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" data-startfrom="234"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 233;"><span id="cb13-234" class="hljs-ln-code"><a href="" aria-label="234"></a>    <span class="dt">int</span> num_devices <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb13-235" class="hljs-ln-code"><a href="" aria-label="235"></a>    <span class="co">// </span><span class="al">TODO</span><span class="co">: Get the available GPU devices into `num_devices` and use it and the current rank to set the active GPU.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-01-solution-1" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 01: Solution</h2>
+<h3 id="setting-the-active-gpu-1">Setting the active GPU</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" data-startfrom="234"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 233;"><span id="cb14-234" class="hljs-ln-code"><a href="" aria-label="234"></a>    <span class="dt">int</span> num_devices <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb14-235" class="hljs-ln-code"><a href="" aria-label="235"></a>    <span class="co">// </span><span class="al">TODO</span><span class="co">: Get the available GPU devices into `num_devices` and use it and the current rank to set the active GPU.</span></span>
+<span id="cb14-236" class="hljs-ln-code"><a href="" aria-label="236"></a>    CUDA_RT_CALL<span class="op">(</span>cudaGetDeviceCount<span class="op">(&amp;</span>num_devices<span class="op">));</span></span>
+<span id="cb14-237" class="hljs-ln-code"><a href="" aria-label="237"></a>    CUDA_RT_CALL<span class="op">(</span>cudaSetDevice<span class="op">(</span>local_rank<span class="op">%</span>num_devices<span class="op">));</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-01-solution-2" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 01: Solution</h2>
+<h3 id="computing-the-top-and-bottom-neighbors">Computing the top and bottom neighbors</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15" data-startfrom="306"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 305;"><span id="cb15-306" class="hljs-ln-code"><a href="" aria-label="306"></a>        <span class="co">//</span><span class="al">TODO</span><span class="co">: Compute top and bottom neighbor, use reflecting/periodic boundaries. This means rank 0 and rank (size-1)</span></span>
+<span id="cb15-307" class="hljs-ln-code"><a href="" aria-label="307"></a>        <span class="co">// exchange data</span></span>
+<span id="cb15-308" class="hljs-ln-code"><a href="" aria-label="308"></a>        <span class="at">const</span> <span class="dt">int</span> top <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb15-309" class="hljs-ln-code"><a href="" aria-label="309"></a>        <span class="at">const</span> <span class="dt">int</span> bottom <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-01-solution-3" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 01: Solution</h2>
+<h3 id="computing-the-top-and-bottom-neighbors-1">Computing the top and bottom neighbors</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16" data-startfrom="308"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 307;"><span id="cb16-308" class="hljs-ln-code"><a href="" aria-label="308"></a>        <span class="co">//</span><span class="al">TODO</span><span class="co">: Compute top and bottom neighbor, use reflecting/periodic boundaries. This means rank 0 and rank (size-1)</span></span>
+<span id="cb16-309" class="hljs-ln-code"><a href="" aria-label="309"></a>        <span class="co">// exchange data</span></span>
+<span id="cb16-310" class="hljs-ln-code"><a href="" aria-label="310"></a>        <span class="at">const</span> <span class="dt">int</span> top <span class="op">=</span> rank <span class="op">&gt;</span> <span class="dv">0</span> <span class="op">?</span> rank <span class="op">-</span> <span class="dv">1</span> <span class="op">:</span> <span class="op">(</span>size <span class="op">-</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb16-311" class="hljs-ln-code"><a href="" aria-label="311"></a>        <span class="at">const</span> <span class="dt">int</span> bottom <span class="op">=</span> <span class="op">(</span>rank <span class="op">+</span> <span class="dv">1</span><span class="op">)</span> <span class="op">%</span> size<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-01-solution-4" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 01: Solution</h2>
+<h3 id="using-mpi_sendrecv-to-exchange-data-between-neighbors">Using <code>MPI_Sendrecv</code> to exchange data between neighbors</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17" data-startfrom="311"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 310;"><span id="cb17-311" class="hljs-ln-code"><a href="" aria-label="311"></a>        <span class="co">// </span><span class="al">TODO</span><span class="co">: Use MPI_Sendrecv to exchange the data with the top and bottom neighbors</span></span>
+<span id="cb17-312" class="hljs-ln-code"><a href="" aria-label="312"></a>        <span class="co">// Use CUDA-aware MPI here, i.e. receive the data directly in a_new on the GPU and send it from there</span></span>
+<span id="cb17-313" class="hljs-ln-code"><a href="" aria-label="313"></a>        <span class="co">// without manually copying the data.</span></span>
+<span id="cb17-314" class="hljs-ln-code"><a href="" aria-label="314"></a></span>
+<span id="cb17-315" class="hljs-ln-code"><a href="" aria-label="315"></a>        <span class="co">// The first newly calculated row ('iy_start') is sent to the top neigbor and the bottom boundary row</span></span>
+<span id="cb17-316" class="hljs-ln-code"><a href="" aria-label="316"></a>        <span class="co">// (`iy_end`) is received from the bottom process.</span></span>
+<span id="cb17-317" class="hljs-ln-code"><a href="" aria-label="317"></a>        <span class="co">// The last calculated row (`iy_end-1`) is send to the bottom process and the top boundary (`0`) is received from the top</span></span>
+<span id="cb17-318" class="hljs-ln-code"><a href="" aria-label="318"></a>        <span class="co">// Don't forget to synchronize the computation on the GPU before starting the data transfer</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-01-solution-5" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 01: Solution</h2>
+<h3 id="using-mpi_sendrecv-to-exchange-data-between-neighbors-1">Using <code>MPI_Sendrecv</code> to exchange data between neighbors</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18" data-startfrom="313"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 312;"><span id="cb18-313" class="hljs-ln-code"><a href="" aria-label="313"></a>        <span class="co">// </span><span class="al">TODO</span><span class="co">: Use MPI_Sendrecv to exchange the data with the top and bottom neighbors</span></span>
+<span id="cb18-314" class="hljs-ln-code"><a href="" aria-label="314"></a>        <span class="co">// Use CUDA-aware MPI here, i.e. receive the data directly in a_new on the GPU and send it from there</span></span>
+<span id="cb18-315" class="hljs-ln-code"><a href="" aria-label="315"></a>        <span class="co">// without manually copying the data.</span></span>
+<span id="cb18-316" class="hljs-ln-code"><a href="" aria-label="316"></a></span>
+<span id="cb18-317" class="hljs-ln-code"><a href="" aria-label="317"></a>        <span class="co">// The first newly calculated row ('iy_start') is sent to the top neigbor and the bottom boundary row</span></span>
+<span id="cb18-318" class="hljs-ln-code"><a href="" aria-label="318"></a>        <span class="co">// (`iy_end`) is received from the bottom process.</span></span>
+<span id="cb18-319" class="hljs-ln-code"><a href="" aria-label="319"></a>        <span class="co">// The last calculated row (`iy_end-1`) is send to the bottom process and the top boundary (`0`) is received from the top</span></span>
+<span id="cb18-320" class="hljs-ln-code"><a href="" aria-label="320"></a>        <span class="co">// Don't forget to synchronize the computation on the GPU before starting the data transfer</span></span>
+<span id="cb18-321" class="hljs-ln-code"><a href="" aria-label="321"></a>        CUDA_RT_CALL<span class="op">(</span>cudaEventSynchronize<span class="op">(</span>compute_done<span class="op">));</span></span>
+<span id="cb18-322" class="hljs-ln-code"><a href="" aria-label="322"></a>        PUSH_RANGE<span class="op">(</span><span class="st">"MPI"</span><span class="op">,</span> <span class="dv">5</span><span class="op">)</span></span>
+<span id="cb18-323" class="hljs-ln-code"><a href="" aria-label="323"></a>        MPI_CALL<span class="op">(</span>MPI_Sendrecv<span class="op">(</span>a_new <span class="op">+</span> iy_start <span class="op">*</span> nx<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> top<span class="op">,</span> <span class="dv">0</span><span class="op">,</span></span>
+<span id="cb18-324" class="hljs-ln-code"><a href="" aria-label="324"></a>                              a_new <span class="op">+</span> <span class="op">(</span>iy_end <span class="op">*</span> nx<span class="op">),</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> bottom<span class="op">,</span> <span class="dv">0</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span></span>
+<span id="cb18-325" class="hljs-ln-code"><a href="" aria-label="325"></a>                              MPI_STATUS_IGNORE<span class="op">));</span></span>
+<span id="cb18-326" class="hljs-ln-code"><a href="" aria-label="326"></a>        MPI_CALL<span class="op">(</span>MPI_Sendrecv<span class="op">(</span>a_new <span class="op">+</span> <span class="op">(</span>iy_end <span class="op">-</span> <span class="dv">1</span><span class="op">)</span> <span class="op">*</span> nx<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> bottom<span class="op">,</span> <span class="dv">0</span><span class="op">,</span> a_new<span class="op">,</span> nx<span class="op">,</span></span>
+<span id="cb18-327" class="hljs-ln-code"><a href="" aria-label="327"></a>                              MPI_REAL_TYPE<span class="op">,</span> top<span class="op">,</span> <span class="dv">0</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span> MPI_STATUS_IGNORE<span class="op">));</span></span>
+<span id="cb18-328" class="hljs-ln-code"><a href="" aria-label="328"></a>        POP_RANGE</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section></section>
 <section>
 <section id="optimization-techniques" class="title-slide slide level1 center">
@@ -862,18 +932,55 @@ u_{i,j}^{(k+1)} = \frac{1}{4} \left( u_{i-1,j}^{(k)} + u_{i+1,j}^{(k)} +
 </section>
 <section id="why-optimization-is-more-important-on-gpus" class="slide level2">
 <h2>Why optimization is <em>more</em> important on GPUs</h2>
+<ul>
+<li>Once you have offloaded heavy computations to the GPU, the remaining bottlenecks are often either:
+<ul>
+<li>Memory transfers between host and device.</li>
+<li>Communication between GPUs.</li>
+</ul></li>
+<li>Keeping data GPU-resident as much as possible including by using GPU-aware MPI can help reduce memory transfer bottlenecks</li>
+<li>There’s not usually a single “best” way to optimize communication between GPUs but there are some common techniques we will cover that may improve performance.</li>
+<li>Many are also relevant to CPU-only MPI applications but the relative performance gains may be more significant on GPUs.</li>
+</ul>
 </section>
-<section id="recap-node-architecture-and-system-topology" class="slide level2">
-<h2>Recap: Node architecture and system topology</h2>
+<section id="recap-supercomputer-gpu-topology" class="slide level2">
+<h2>Recap: Supercomputer GPU topology</h2>
+<p><img data-src="media/supercomputer-gpu-topology.svg"> <!-- The inline SVG images are quite long hence included separately --> <!-- {{< include includes/mapping-mpi-processes.qmd >}} --></p>
 </section>
-<section id="numa-affinity-and-gpu-distribution" class="slide level2">
+<section id="numa-affinity-and-gpu-distribution" class="slide level2 smaller">
 <h2>NUMA, affinity and GPU distribution</h2>
+<ul>
+<li><p>Note that in the node diagram, GPUs 0 and 2 are “closest” to CPU 0 and GPUs 1 and 3 are “closest” to CPU 1.</p></li>
+<li><p>Similarly, GPUs 0 and 1 are “closest” to NIC 0 and GPUs 2 and 3 are “closest” to NIC 1.</p></li>
+<li><p>This diagram is somewhat arbitrary and the actual topology differs between systems.</p></li>
+<li><p>Within just the CPU, for a given CPU cores, some memory domains are “closer” than others. This is known as Non-Uniform Memory Access (NUMA).</p></li>
+<li><p>The differences in distance can mean, for a specific GPU, it may be faster to transfer/read data to/from specific CPU cores and NICs compared to others.</p></li>
+<li><p>To achieve the best performance, it is often necessary to bind specific CPU cores, a specific GPU and a specific NIC to each MPI process.</p></li>
+<li><p>It is technically possible to figure out the topology yourself using tools such as <code>hwloc-ls</code> and <code>nvidia-smi topo</code> but it is usually best and easiest to check the system documentation to see if one has been provided.</p></li>
+<li><p>Typically, these scripts are used in your MPI launch line:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb19-1"><a href="" aria-hidden="true" tabindex="-1"></a><span class="ex">mpiexec</span> <span class="op">&lt;</span>MPI options<span class="op">&gt;</span> ./binding_script.sh <span class="op">&lt;</span>application<span class="op">&gt;</span> <span class="op">&lt;</span>options<span class="op">&gt;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+</ul>
 </section>
-<section id="example-gpu-binding-script" class="slide level2">
-<h2>Example GPU binding script</h2>
-</section>
-<section id="exercise-binding-scripts" class="slide level2">
-<h2>Exercise: Binding scripts</h2>
+<section id="example-gpu-binding-script-csd3-ampere-nodes" class="slide level2">
+<h2>Example GPU binding script (CSD3 Ampere nodes)</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20" data-code-line-numbers="|2|4-5|7-9|11-12|14-18|"><pre class="sourceCode numberSource bash number-lines code-with-copy"><code class="sourceCode bash"><span id="cb20-1"><a href="" aria-label="1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb20-2"><a href="" aria-label="2"></a><span class="va">GPUS</span><span class="op">=</span><span class="va">(</span>0 1 2 3<span class="va">)</span></span>
+<span id="cb20-3"><a href="" aria-label="3"></a></span>
+<span id="cb20-4"><a href="" aria-label="4"></a><span class="co"># associate GPUs 0,1 with MLX0, GPUs 2,3 with MLX1</span></span>
+<span id="cb20-5"><a href="" aria-label="5"></a><span class="va">NICS</span><span class="op">=</span><span class="va">(</span>mlx5_0:1 mlx5_0:1 mlx5_1:1 mlx5_1:1<span class="va">)</span></span>
+<span id="cb20-6"><a href="" aria-label="6"></a></span>
+<span id="cb20-7"><a href="" aria-label="7"></a><span class="co"># On the Ampere nodes we have 2x64 core CPUs, each organised into 4 NUMA domains</span></span>
+<span id="cb20-8"><a href="" aria-label="8"></a><span class="co"># We will use only a subset of the available NUMA domains, i.e. 1 NUMA domain per GPU</span></span>
+<span id="cb20-9"><a href="" aria-label="9"></a><span class="va">CPUS</span><span class="op">=</span><span class="va">(</span>48-63 16-31 112-127 80-95<span class="va">)</span></span>
+<span id="cb20-10"><a href="" aria-label="10"></a></span>
+<span id="cb20-11"><a href="" aria-label="11"></a><span class="co"># This is the list of memory domains we should use for each GPU</span></span>
+<span id="cb20-12"><a href="" aria-label="12"></a><span class="va">MEMS</span><span class="op">=</span><span class="va">(</span>3 1 7 5<span class="va">)</span></span>
+<span id="cb20-13"><a href="" aria-label="13"></a></span>
+<span id="cb20-14"><a href="" aria-label="14"></a><span class="va">lrank</span><span class="op">=</span><span class="va">$OMPI_COMM_WORLD_LOCAL_RANK</span></span>
+<span id="cb20-15"><a href="" aria-label="15"></a></span>
+<span id="cb20-16"><a href="" aria-label="16"></a><span class="bu">export</span> <span class="va">CUDA_VISIBLE_DEVICES</span><span class="op">=</span><span class="va">${GPUS</span><span class="op">[</span><span class="va">${lrank}</span><span class="op">]</span><span class="va">}</span></span>
+<span id="cb20-17"><a href="" aria-label="17"></a><span class="bu">export</span> <span class="va">UCX_NET_DEVICES</span><span class="op">=</span><span class="va">${NICS</span><span class="op">[</span><span class="va">${lrank}</span><span class="op">]</span><span class="va">}</span></span>
+<span id="cb20-18"><a href="" aria-label="18"></a><span class="ex">numactl</span> <span class="at">--physcpubind</span><span class="op">=</span><span class="st">"</span><span class="va">${CPUS</span><span class="op">[</span><span class="va">${lrank}</span><span class="op">]</span><span class="va">}</span><span class="st">"</span> <span class="at">--membind</span><span class="op">=</span><span class="st">"</span><span class="va">${MEMS</span><span class="op">[</span><span class="va">${lrank}</span><span class="op">]</span><span class="va">}</span><span class="st">"</span> <span class="st">"</span><span class="va">$@</span><span class="st">"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="packing-kernels" class="slide level2">
 <h2>Packing kernels</h2>
@@ -889,7 +996,7 @@ u_{i,j}^{(k+1)} = \frac{1}{4} \left( u_{i-1,j}^{(k)} + u_{i+1,j}^{(k)} +
 <section id="exercise-packing-kernels-and-non-blocking-communication" class="slide level2">
 <h2>Exercise: Packing kernels and non-blocking communication</h2>
 </section>
-<section id="exercise-solution-1" class="slide level2">
+<section id="exercise-solution" class="slide level2">
 <h2>Exercise Solution</h2>
 </section>
 <section id="overlapping-communication-and-computation" class="slide level2">
@@ -898,7 +1005,7 @@ u_{i,j}^{(k+1)} = \frac{1}{4} \left( u_{i-1,j}^{(k)} + u_{i+1,j}^{(k)} +
 <section id="exercise-overlapping-communication-and-computation" class="slide level2">
 <h2>Exercise: Overlapping communication and computation</h2>
 </section>
-<section id="exercise-solution-2" class="slide level2">
+<section id="exercise-solution-1" class="slide level2">
 <h2>Exercise: Solution</h2>
 </section></section>
 <section>
