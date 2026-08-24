@@ -378,19 +378,168 @@ For simplicity, we will decompose the domain in the $y$ direction only:
 
 ## Exercise: Jacobi solver
 
-## Exercise: Solution
+## Exercise 01: Jacobi solver
 
+Use GPU-aware MPI to parallelize the Jacobi solvers across multiple GPUs. You
+will need to do the following:
+
+1. Get the available GPU devices and use it and the local rank to set the active
+   GPU for each process.
+1. Compute the top and bottom neighbours (recall: periodic BCs on top/bottom).
+1. Use `MPI_Sendrecv` with GPU-resident pointers/arrays to exchange data between
+   the neighbors.
+
+You can either choose CUDA+C++ or OpenMP+Fortran. Further details are provided
+in the respective README files.
+
+There is an "advanced" extension task if you finish early.
+
+## Exercise 01: Solution {auto-animate="true"}
+
+### Setting the active GPU
+
+```{.cpp startFrom="234"}
+    int num_devices = 0;
+    // TODO: Get the available GPU devices into `num_devices` and use it and the current rank to set the active GPU.
+```
+
+## Exercise 01: Solution {auto-animate="true"}
+
+### Setting the active GPU
+
+```{.cpp startFrom="234"}
+    int num_devices = 0;
+    // TODO: Get the available GPU devices into `num_devices` and use it and the current rank to set the active GPU.
+    CUDA_RT_CALL(cudaGetDeviceCount(&num_devices));
+    CUDA_RT_CALL(cudaSetDevice(local_rank%num_devices));
+```
+
+## Exercise 01: Solution {auto-animate="true"}
+
+### Computing the top and bottom neighbors
+
+```{.cpp startFrom="306"}
+        //TODO: Compute top and bottom neighbor, use reflecting/periodic boundaries. This means rank 0 and rank (size-1)
+        // exchange data
+        const int top = 0;
+        const int bottom = 0;
+```
+
+## Exercise 01: Solution {auto-animate="true"}
+
+### Computing the top and bottom neighbors
+
+```{.cpp startFrom="308"}
+        //TODO: Compute top and bottom neighbor, use reflecting/periodic boundaries. This means rank 0 and rank (size-1)
+        // exchange data
+        const int top = rank > 0 ? rank - 1 : (size - 1);
+        const int bottom = (rank + 1) % size;
+```
+
+## Exercise 01: Solution {auto-animate="true"}
+
+### Using `MPI_Sendrecv` to exchange data between neighbors
+
+```{.cpp startFrom="311"}
+        // TODO: Use MPI_Sendrecv to exchange the data with the top and bottom neighbors
+        // Use CUDA-aware MPI here, i.e. receive the data directly in a_new on the GPU and send it from there
+        // without manually copying the data.
+
+        // The first newly calculated row ('iy_start') is sent to the top neigbor and the bottom boundary row
+        // (`iy_end`) is received from the bottom process.
+        // The last calculated row (`iy_end-1`) is send to the bottom process and the top boundary (`0`) is received from the top
+        // Don't forget to synchronize the computation on the GPU before starting the data transfer
+```
+
+## Exercise 01: Solution {auto-animate="true"}
+
+### Using `MPI_Sendrecv` to exchange data between neighbors
+
+```{.cpp startFrom="313"}
+        // TODO: Use MPI_Sendrecv to exchange the data with the top and bottom neighbors
+        // Use CUDA-aware MPI here, i.e. receive the data directly in a_new on the GPU and send it from there
+        // without manually copying the data.
+
+        // The first newly calculated row ('iy_start') is sent to the top neigbor and the bottom boundary row
+        // (`iy_end`) is received from the bottom process.
+        // The last calculated row (`iy_end-1`) is send to the bottom process and the top boundary (`0`) is received from the top
+        // Don't forget to synchronize the computation on the GPU before starting the data transfer
+        CUDA_RT_CALL(cudaEventSynchronize(compute_done));
+        PUSH_RANGE("MPI", 5)
+        MPI_CALL(MPI_Sendrecv(a_new + iy_start * nx, nx, MPI_REAL_TYPE, top, 0,
+                              a_new + (iy_end * nx), nx, MPI_REAL_TYPE, bottom, 0, MPI_COMM_WORLD,
+                              MPI_STATUS_IGNORE));
+        MPI_CALL(MPI_Sendrecv(a_new + (iy_end - 1) * nx, nx, MPI_REAL_TYPE, bottom, 0, a_new, nx,
+                              MPI_REAL_TYPE, top, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
+        POP_RANGE
+```
 # Optimization techniques
 
 ## Why optimization is *more* important on GPUs
 
-## Recap: Node architecture and system topology
+* Once you have offloaded heavy computations to the GPU, the remaining
+  bottlenecks are often either:
+  * Memory transfers between host and device.
+  * Communication between GPUs.
+* Keeping data GPU-resident as much as possible including by using GPU-aware MPI
+  can help reduce memory transfer bottlenecks
+* There's not usually a single "best" way to optimize communication between GPUs
+  but there are some common techniques we will cover that may improve
+  performance.
+* Many are also relevant to CPU-only MPI applications but the relative
+  performance gains may be more significant on GPUs.
 
-## NUMA, affinity and GPU distribution
+## Recap: Supercomputer GPU topology
 
-## Example GPU binding script
+![](media/supercomputer-gpu-topology.svg)
+<!-- The inline SVG images are quite long hence included separately -->
+<!-- {{< include includes/mapping-mpi-processes.qmd >}} -->
 
-## Exercise: Binding scripts
+
+## NUMA, affinity and GPU distribution {.smaller}
+
+* Note that in the node diagram, GPUs 0 and 2 are "closest" to CPU 0 and GPUs 1
+  and 3 are "closest" to CPU 1.
+* Similarly, GPUs 0 and 1 are "closest" to NIC 0 and GPUs 2 and 3 are "closest"
+  to NIC 1.
+* This diagram is somewhat arbitrary and the actual topology differs between
+  systems.
+* Within just the CPU, for a given CPU cores, some memory domains are "closer"
+  than others. This is known as Non-Uniform Memory Access (NUMA).
+* The differences in distance can mean, for a specific GPU, it may be faster to
+  transfer/read data to/from specific CPU cores and NICs compared to others.
+* To achieve the best performance, it is often necessary to bind specific CPU
+  cores, a specific GPU and a specific NIC to each MPI process.
+* It is technically possible to figure out the topology yourself using tools
+  such as `hwloc-ls` and `nvidia-smi topo` but it is usually best and easiest to
+  check the system documentation to see if one has been provided.
+* Typically, these scripts are used in your MPI launch line:
+  ```{.bash code-line-numbers=false}
+  mpiexec <MPI options> ./binding_script.sh <application> <options>
+  ```
+
+## Example GPU binding script (CSD3 Ampere nodes)
+
+```{.bash code-line-numbers="|2|4-5|7-9|11-12|14-18|"}
+#!/bin/bash
+GPUS=(0 1 2 3)
+
+# associate GPUs 0,1 with MLX0, GPUs 2,3 with MLX1
+NICS=(mlx5_0:1 mlx5_0:1 mlx5_1:1 mlx5_1:1)
+
+# On the Ampere nodes we have 2x64 core CPUs, each organised into 4 NUMA domains
+# We will use only a subset of the available NUMA domains, i.e. 1 NUMA domain per GPU
+CPUS=(48-63 16-31 112-127 80-95)
+
+# This is the list of memory domains we should use for each GPU
+MEMS=(3 1 7 5)
+
+lrank=$OMPI_COMM_WORLD_LOCAL_RANK
+
+export CUDA_VISIBLE_DEVICES=${GPUS[${lrank}]}
+export UCX_NET_DEVICES=${NICS[${lrank}]}
+numactl --physcpubind="${CPUS[${lrank}]}" --membind="${MEMS[${lrank}]}" "$@"
+```
 
 ## Packing kernels
 
