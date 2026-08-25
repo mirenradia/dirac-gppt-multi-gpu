@@ -831,26 +831,229 @@ u_{i,j}^{(k+1)} = \frac{1}{4} \left( u_{i-1,j}^{(k)} + u_{i+1,j}^{(k)} +
     swap(u, u_new)
 
     next iteration</code></pre>
+<!-- The inline SVG images are quite long hence included separately -->
 </section>
-<section id="example-domain-decomposition" class="slide level2">
+<section id="example-domain-decomposition" class="slide level2" data-transition="slide-in none-out">
 <h2>Example: Domain decomposition</h2>
 <p>For simplicity, we will decompose the domain in the <span class="math inline">\(y\)</span> direction only:</p>
 <div class="columns">
-<div class="column" style="width:60%;">
-<div class="quarto-figure quarto-figure-center">
-<figure>
-<p><img data-src="media/domain-full.svg" class="quarto-figure quarto-figure-center" style="width:40.0%" alt="Full 2D Jacobi domain before decomposition"></p>
-</figure>
-</div>
+<div class="column" style="width:50%;">
+<svg class="domain-decomp-animation" xmlns="http://www.w3.org/2000/svg" viewbox="0 0 280 378" width="280" height="378" style="display: block; margin: 0 auto;" role="img" aria-label="2D domain splitting into horizontal slabs, then ghost cells and halo exchange arrows appearing">
+  <style>
+    .domain-decomp-animation .ghost { opacity: 0; }
+    .domain-decomp-animation .arrows { opacity: 0; }
+    @keyframes slab2-split { from { transform: translateY(0); } to { transform: translateY(42px); } }
+    @keyframes slab3-split { from { transform: translateY(0); } to { transform: translateY(84px); } }
+    @keyframes slab4-split { from { transform: translateY(0); } to { transform: translateY(126px); } }
+    @keyframes ghost-appear { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes arrows-appear { to { opacity: 1; } }
+    @keyframes arrow-draw { to { stroke-dashoffset: 0; } }
+    .domain-decomp-animation.animate .slab-2 { animation: slab2-split 1s ease-in-out 0.1s both; }
+    .domain-decomp-animation.animate .slab-3 { animation: slab3-split 1s ease-in-out 0.1s both; }
+    .domain-decomp-animation.animate .slab-4 { animation: slab4-split 1s ease-in-out 0.1s both; }
+    .domain-decomp-animation.animate .ghost { animation: ghost-appear 0.6s ease 1.2s both; }
+    .domain-decomp-animation.animate .arrows { animation: arrows-appear 0.01s ease 2s both; }
+    .domain-decomp-animation.animate .arrows path { animation: arrow-draw 0.8s ease 2s forwards; }
+  </style>
+  <defs>
+    <pattern id="decomp-grid-start" width="14" height="14" patternunits="userSpaceOnUse">
+      <path d="M 14 0 L 0 0 0 14" fill="none" stroke="#4f8f3d" stroke-width="1.2"></path>
+    </pattern>
+    <marker id="decomp-arrow-start" viewbox="0 0 10 10" markerwidth="4" markerheight="4" refx="9" refy="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8f8f8f"></path>
+    </marker>
+  </defs>
+
+  <g class="slab slab-1">
+    <g class="ghost">
+      <rect x="28" y="70" width="224" height="14" fill="#b7d99f"></rect>
+      <rect x="28" y="70" width="224" height="14" fill="url(#decomp-grid-start)"></rect>
+      <rect x="28" y="70" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+    </g>
+    <rect x="28" y="14" width="224" height="56" fill="#74b54b"></rect>
+    <rect x="28" y="14" width="224" height="56" fill="url(#decomp-grid-start)"></rect>
+    <rect x="28" y="14" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+  </g>
+
+  <g class="slab slab-2">
+    <g class="ghost">
+      <rect x="28" y="56" width="224" height="14" fill="#b7d99f"></rect>
+      <rect x="28" y="56" width="224" height="14" fill="url(#decomp-grid-start)"></rect>
+      <rect x="28" y="56" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+      <rect x="28" y="126" width="224" height="14" fill="#b7d99f"></rect>
+      <rect x="28" y="126" width="224" height="14" fill="url(#decomp-grid-start)"></rect>
+      <rect x="28" y="126" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+    </g>
+    <rect x="28" y="70" width="224" height="56" fill="#74b54b"></rect>
+    <rect x="28" y="70" width="224" height="56" fill="url(#decomp-grid-start)"></rect>
+    <rect x="28" y="70" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+  </g>
+
+  <g class="slab slab-3">
+    <g class="ghost">
+      <rect x="28" y="112" width="224" height="14" fill="#b7d99f"></rect>
+      <rect x="28" y="112" width="224" height="14" fill="url(#decomp-grid-start)"></rect>
+      <rect x="28" y="112" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+      <rect x="28" y="182" width="224" height="14" fill="#b7d99f"></rect>
+      <rect x="28" y="182" width="224" height="14" fill="url(#decomp-grid-start)"></rect>
+      <rect x="28" y="182" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+    </g>
+    <rect x="28" y="126" width="224" height="56" fill="#74b54b"></rect>
+    <rect x="28" y="126" width="224" height="56" fill="url(#decomp-grid-start)"></rect>
+    <rect x="28" y="126" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+  </g>
+
+  <g class="slab slab-4">
+    <g class="ghost">
+      <rect x="28" y="168" width="224" height="14" fill="#b7d99f"></rect>
+      <rect x="28" y="168" width="224" height="14" fill="url(#decomp-grid-start)"></rect>
+      <rect x="28" y="168" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+    </g>
+    <rect x="28" y="182" width="224" height="56" fill="#74b54b"></rect>
+    <rect x="28" y="182" width="224" height="56" fill="url(#decomp-grid-start)"></rect>
+    <rect x="28" y="182" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+  </g>
+
+  <g class="arrows" fill="none" stroke="#8f8f8f" stroke-width="1.5" marker-end="url(#decomp-arrow-start)">
+    <path d="M 28 63 C 14 63, 14 105, 24 105"></path>
+    <path d="M 252 119 C 266 119, 266 77, 256 77"></path>
+    <path d="M 28 161 C 14 161, 14 203, 24 203"></path>
+    <path d="M 252 217 C 266 217, 266 175, 256 175"></path>
+    <path d="M 28 259 C 14 259, 14 301, 24 301"></path>
+    <path d="M 252 315 C 266 315, 266 273, 256 273"></path>
+  </g>
+</svg>
+</div><div class="column" style="width:50%;">
 <ul>
 <li>In a realistic scenario, we would decompose the domain in both <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> directions to reduce the amount of communication between MPI processes.</li>
 </ul>
-</div><div class="column" style="width:30%;">
-<p><img data-src="media/domain-decomp-y.svg" style="width:100.0%" alt="Domain decomposed into horizontal slabs with neighbour halo communication"></p>
 </div></div>
 </section>
-<section id="exercise-jacobi-solver" class="slide level2">
-<h2>Exercise: Jacobi solver</h2>
+<section id="example-domain-decomposition-end" class="slide level2" data-transition="none-in slide-out">
+<h2>Example: Domain decomposition</h2>
+<p>For simplicity, we will decompose the domain in the <span class="math inline">\(y\)</span> direction only:</p>
+<div class="columns">
+<div class="column" style="width:50%;">
+<svg class="domain-decomp-animation domain-decomp-animation-end" xmlns="http://www.w3.org/2000/svg" viewbox="0 0 280 378" width="280" height="378" style="display: block; margin: 0 auto;" role="img" aria-label="2D domain splitting into horizontal slabs, then ghost cells and halo exchange arrows appearing">
+  <style>
+    .domain-decomp-animation .ghost { opacity: 0; }
+    .domain-decomp-animation .arrows { opacity: 0; }
+    @keyframes slab2-split { from { transform: translateY(0); } to { transform: translateY(42px); } }
+    @keyframes slab3-split { from { transform: translateY(0); } to { transform: translateY(84px); } }
+    @keyframes slab4-split { from { transform: translateY(0); } to { transform: translateY(126px); } }
+    @keyframes ghost-appear { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes arrows-appear { to { opacity: 1; } }
+    @keyframes arrow-draw { to { stroke-dashoffset: 0; } }
+    .domain-decomp-animation.animate .slab-2 { animation: slab2-split 1s ease-in-out 0.1s both; }
+    .domain-decomp-animation.animate .slab-3 { animation: slab3-split 1s ease-in-out 0.1s both; }
+    .domain-decomp-animation.animate .slab-4 { animation: slab4-split 1s ease-in-out 0.1s both; }
+    .domain-decomp-animation.animate .ghost { animation: ghost-appear 0.6s ease 1.2s both; }
+    .domain-decomp-animation.animate .arrows { animation: arrows-appear 0.01s ease 2s both; }
+    .domain-decomp-animation.animate .arrows path { animation: arrow-draw 0.8s ease 2s forwards; }
+  </style>
+  <defs>
+    <pattern id="decomp-grid-end" width="14" height="14" patternunits="userSpaceOnUse">
+      <path d="M 14 0 L 0 0 0 14" fill="none" stroke="#4f8f3d" stroke-width="1.2"></path>
+    </pattern>
+    <marker id="decomp-arrow-end" viewbox="0 0 10 10" markerwidth="4" markerheight="4" refx="9" refy="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8f8f8f"></path>
+    </marker>
+  </defs>
+
+  <g class="slab slab-1">
+    <g class="ghost">
+      <rect x="28" y="70" width="224" height="14" fill="#b7d99f"></rect>
+      <rect x="28" y="70" width="224" height="14" fill="url(#decomp-grid-end)"></rect>
+      <rect x="28" y="70" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+    </g>
+    <rect x="28" y="14" width="224" height="56" fill="#74b54b"></rect>
+    <rect x="28" y="14" width="224" height="56" fill="url(#decomp-grid-end)"></rect>
+    <rect x="28" y="14" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+  </g>
+
+  <g class="slab slab-2">
+    <g class="ghost">
+      <rect x="28" y="56" width="224" height="14" fill="#b7d99f"></rect>
+      <rect x="28" y="56" width="224" height="14" fill="url(#decomp-grid-end)"></rect>
+      <rect x="28" y="56" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+      <rect x="28" y="126" width="224" height="14" fill="#b7d99f"></rect>
+      <rect x="28" y="126" width="224" height="14" fill="url(#decomp-grid-end)"></rect>
+      <rect x="28" y="126" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+    </g>
+    <rect x="28" y="70" width="224" height="56" fill="#74b54b"></rect>
+    <rect x="28" y="70" width="224" height="56" fill="url(#decomp-grid-end)"></rect>
+    <rect x="28" y="70" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+  </g>
+
+  <g class="slab slab-3">
+    <g class="ghost">
+      <rect x="28" y="112" width="224" height="14" fill="#b7d99f"></rect>
+      <rect x="28" y="112" width="224" height="14" fill="url(#decomp-grid-end)"></rect>
+      <rect x="28" y="112" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+      <rect x="28" y="182" width="224" height="14" fill="#b7d99f"></rect>
+      <rect x="28" y="182" width="224" height="14" fill="url(#decomp-grid-end)"></rect>
+      <rect x="28" y="182" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+    </g>
+    <rect x="28" y="126" width="224" height="56" fill="#74b54b"></rect>
+    <rect x="28" y="126" width="224" height="56" fill="url(#decomp-grid-end)"></rect>
+    <rect x="28" y="126" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+  </g>
+
+  <g class="slab slab-4">
+    <g class="ghost">
+      <rect x="28" y="168" width="224" height="14" fill="#b7d99f"></rect>
+      <rect x="28" y="168" width="224" height="14" fill="url(#decomp-grid-end)"></rect>
+      <rect x="28" y="168" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+    </g>
+    <rect x="28" y="182" width="224" height="56" fill="#74b54b"></rect>
+    <rect x="28" y="182" width="224" height="56" fill="url(#decomp-grid-end)"></rect>
+    <rect x="28" y="182" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"></rect>
+  </g>
+
+  <g class="arrows" fill="none" stroke="#8f8f8f" stroke-width="1.5" marker-end="url(#decomp-arrow-end)">
+    <path d="M 28 63 C 14 63, 14 105, 24 105"></path>
+    <path d="M 252 119 C 266 119, 266 77, 256 77"></path>
+    <path d="M 28 161 C 14 161, 14 203, 24 203"></path>
+    <path d="M 252 217 C 266 217, 266 175, 256 175"></path>
+    <path d="M 28 259 C 14 259, 14 301, 24 301"></path>
+    <path d="M 252 315 C 266 315, 266 273, 256 273"></path>
+  </g>
+</svg>
+</div><div class="column" style="width:50%;">
+<ul>
+<li>In a realistic scenario, we would decompose the domain in both <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> directions to reduce the amount of communication between MPI processes.</li>
+</ul>
+</div></div>
+<script>
+window.addEventListener("load", () => {
+  const slideId = "example-domain-decomposition-end";
+  let timers = [];
+
+  const resetAnimation = svg => {
+    timers.forEach(window.clearTimeout);
+    timers = [];
+    svg.classList.remove("animate");
+    svg.querySelectorAll(".arrows path").forEach(path => {
+      const len = path.getTotalLength();
+      path.style.strokeDasharray = len;
+      path.style.strokeDashoffset = len;
+    });
+  };
+
+  const startAnimation = svg => {
+    resetAnimation(svg);
+    void svg.getBoundingClientRect();
+    timers.push(window.setTimeout(() => svg.classList.add("animate"), 100));
+  };
+
+  Reveal.on("slidechanged", event => {
+    if (event.currentSlide.id !== slideId) return;
+
+    const svg = event.currentSlide.querySelector(".domain-decomp-animation-end");
+    startAnimation(svg);
+  });
+});
+</script>
 </section>
 <section id="exercise-01-jacobi-solver" class="slide level2">
 <h2>Exercise 01: Jacobi solver</h2>
@@ -956,7 +1159,7 @@ u_{i,j}^{(k+1)} = \frac{1}{4} \left( u_{i-1,j}^{(k)} + u_{i+1,j}^{(k)} +
 <li><p>Within just the CPU, for a given CPU cores, some memory domains are “closer” than others. This is known as Non-Uniform Memory Access (NUMA).</p></li>
 <li><p>The differences in distance can mean, for a specific GPU, it may be faster to transfer/read data to/from specific CPU cores and NICs compared to others.</p></li>
 <li><p>To achieve the best performance, it is often necessary to bind specific CPU cores, a specific GPU and a specific NIC to each MPI process.</p></li>
-<li><p>It is technically possible to figure out the topology yourself using tools such as <code>hwloc-ls</code> and <code>nvidia-smi topo</code> but it is usually best and easiest to check the system documentation to see if one has been provided.</p></li>
+<li><p>It is technically possible to figure out the topology yourself using tools such as <code>hwloc-ls</code> and <code>nvidia-smi topo</code> and then write a binding script but it is usually best and easiest to check the system documentation to see if one has been provided.</p></li>
 <li><p>Typically, these scripts are used in your MPI launch line:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb19-1"><a href="" aria-hidden="true" tabindex="-1"></a><span class="ex">mpiexec</span> <span class="op">&lt;</span>MPI options<span class="op">&gt;</span> ./binding_script.sh <span class="op">&lt;</span>application<span class="op">&gt;</span> <span class="op">&lt;</span>options<span class="op">&gt;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 </ul>
@@ -982,16 +1185,41 @@ u_{i,j}^{(k+1)} = \frac{1}{4} \left( u_{i-1,j}^{(k)} + u_{i+1,j}^{(k)} +
 <span id="cb20-17"><a href="" aria-label="17"></a><span class="bu">export</span> <span class="va">UCX_NET_DEVICES</span><span class="op">=</span><span class="va">${NICS</span><span class="op">[</span><span class="va">${lrank}</span><span class="op">]</span><span class="va">}</span></span>
 <span id="cb20-18"><a href="" aria-label="18"></a><span class="ex">numactl</span> <span class="at">--physcpubind</span><span class="op">=</span><span class="st">"</span><span class="va">${CPUS</span><span class="op">[</span><span class="va">${lrank}</span><span class="op">]</span><span class="va">}</span><span class="st">"</span> <span class="at">--membind</span><span class="op">=</span><span class="st">"</span><span class="va">${MEMS</span><span class="op">[</span><span class="va">${lrank}</span><span class="op">]</span><span class="va">}</span><span class="st">"</span> <span class="st">"</span><span class="va">$@</span><span class="st">"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="packing-kernels" class="slide level2">
+<section id="packing-kernels" class="slide level2 smaller">
 <h2>Packing kernels</h2>
+<ul>
+<li>Since there is a greater overhead in launching GPU kernels, sending lots of small messages between GPUs is often more inefficient than doing the same in a CPU-only MPI application.</li>
+<li>It is usually more efficient to “pack” multiple small messages into a single larger buffer and send that instead.</li>
+<li>For each pair of communicating processes, you can achieve this as follows:
+<ol type="1">
+<li>Allocate a single contiguous GPU-resident buffer to send data and another to receive data.</li>
+<li>Launch a kernel to pack the data to be sent into the send buffer.</li>
+<li>Send the packed buffer to the other GPU using GPU-aware MPI.</li>
+<li>Launch a kernel to unpack the received buffer at the other end as required.</li>
+</ol></li>
+<li>If you use MPI derived datatypes with non-contiguous data, the MPI implementation will usually not pack the data for you so communication will be inefficient → Replace with packing kernels as described above.</li>
+<li>Since packing kernels will typically be quite small, it is best to launch them asynchronously (<code>nowait</code> clause for OpenMP).</li>
+</ul>
 <!-- Remove MPI derived datatypes -->
 <!-- Mention asynchronous kernels -->
 </section>
-<section id="non-blocking-mpi-communication" class="slide level2">
-<h2>Non-blocking MPI communication</h2>
-</section>
-<section id="collective-operations" class="slide level2">
-<h2>Collective operations</h2>
+<section id="other-mpi-optimization-techniques" class="slide level2 smaller">
+<h2>Other MPI optimization techniques</h2>
+<ul>
+<li>You probably don’t need <code>MPI_Barrier</code>s for correctness. Unnecessary synchronization can be expensive.</li>
+<li>Where you can, use non-blocking communication routines.
+<ul>
+<li>These are usually prefixed with <code>MPI_I</code> e.g.&nbsp;<code>MPI_Isend</code>, <code>MPI_Irecv</code>.</li>
+<li>These allow you to overlap communication with computation.</li>
+<li>Remember to synchronize appropriately e.g.&nbsp;with <code>MPI_Wait</code> before trying to access received data.</li>
+</ul></li>
+<li>Use MPI collective communication routines (e.g.&nbsp;<code>MPI_Allreduce</code>, <code>MPI_Bcast</code>, <code>MPI_Alltoall</code>) where possible (non-blocking versions available since MPI 3.0).
+<ul>
+<li>Many MPI implementations have optimized collective communication routines that can be significantly more efficient than implementing collectives naively with point-to-point calls.</li>
+<li>Figuring out when you might be accidentally implementing collectives naively can be non-trivial.</li>
+<li>Neighbourhood collectives may be more efficient for exchanging halo regions in a decomposed domain.</li>
+</ul></li>
+</ul>
 </section>
 <section id="exercise-packing-kernels-and-non-blocking-communication" class="slide level2">
 <h2>Exercise: Packing kernels and non-blocking communication</h2>
