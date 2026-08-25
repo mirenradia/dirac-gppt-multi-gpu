@@ -1,0 +1,238 @@
+## Example: Domain decomposition {transition="slide-in none-out"}
+
+For simplicity, we will decompose the domain in the $y$ direction only:
+
+:::: {.columns}
+
+::: {.column width="50%"}
+```{=html}
+<svg class="domain-decomp-animation" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 378" width="280" height="378" style="display: block; margin: 0 auto;" role="img" aria-label="2D domain splitting into horizontal slabs, then ghost cells and halo exchange arrows appearing">
+  <style>
+    .domain-decomp-animation .ghost { opacity: 0; }
+    .domain-decomp-animation .arrows { opacity: 0; }
+    @keyframes slab2-split { from { transform: translateY(0); } to { transform: translateY(42px); } }
+    @keyframes slab3-split { from { transform: translateY(0); } to { transform: translateY(84px); } }
+    @keyframes slab4-split { from { transform: translateY(0); } to { transform: translateY(126px); } }
+    @keyframes ghost-appear { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes arrows-appear { to { opacity: 1; } }
+    @keyframes arrow-draw { to { stroke-dashoffset: 0; } }
+    .domain-decomp-animation.animate .slab-2 { animation: slab2-split 1s ease-in-out 0.1s both; }
+    .domain-decomp-animation.animate .slab-3 { animation: slab3-split 1s ease-in-out 0.1s both; }
+    .domain-decomp-animation.animate .slab-4 { animation: slab4-split 1s ease-in-out 0.1s both; }
+    .domain-decomp-animation.animate .ghost { animation: ghost-appear 0.6s ease 1.2s both; }
+    .domain-decomp-animation.animate .arrows { animation: arrows-appear 0.01s ease 2s both; }
+    .domain-decomp-animation.animate .arrows path { animation: arrow-draw 0.8s ease 2s forwards; }
+  </style>
+  <defs>
+    <pattern id="decomp-grid-start" width="14" height="14" patternUnits="userSpaceOnUse">
+      <path d="M 14 0 L 0 0 0 14" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+    </pattern>
+    <marker id="decomp-arrow-start" viewBox="0 0 10 10" markerWidth="4" markerHeight="4" refX="9" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8f8f8f"/>
+    </marker>
+  </defs>
+
+  <g class="slab slab-1">
+    <g class="ghost">
+      <rect x="28" y="70" width="224" height="14" fill="#b7d99f"/>
+      <rect x="28" y="70" width="224" height="14" fill="url(#decomp-grid-start)"/>
+      <rect x="28" y="70" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+    </g>
+    <rect x="28" y="14" width="224" height="56" fill="#74b54b"/>
+    <rect x="28" y="14" width="224" height="56" fill="url(#decomp-grid-start)"/>
+    <rect x="28" y="14" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+  </g>
+
+  <g class="slab slab-2">
+    <g class="ghost">
+      <rect x="28" y="56" width="224" height="14" fill="#b7d99f"/>
+      <rect x="28" y="56" width="224" height="14" fill="url(#decomp-grid-start)"/>
+      <rect x="28" y="56" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+      <rect x="28" y="126" width="224" height="14" fill="#b7d99f"/>
+      <rect x="28" y="126" width="224" height="14" fill="url(#decomp-grid-start)"/>
+      <rect x="28" y="126" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+    </g>
+    <rect x="28" y="70" width="224" height="56" fill="#74b54b"/>
+    <rect x="28" y="70" width="224" height="56" fill="url(#decomp-grid-start)"/>
+    <rect x="28" y="70" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+  </g>
+
+  <g class="slab slab-3">
+    <g class="ghost">
+      <rect x="28" y="112" width="224" height="14" fill="#b7d99f"/>
+      <rect x="28" y="112" width="224" height="14" fill="url(#decomp-grid-start)"/>
+      <rect x="28" y="112" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+      <rect x="28" y="182" width="224" height="14" fill="#b7d99f"/>
+      <rect x="28" y="182" width="224" height="14" fill="url(#decomp-grid-start)"/>
+      <rect x="28" y="182" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+    </g>
+    <rect x="28" y="126" width="224" height="56" fill="#74b54b"/>
+    <rect x="28" y="126" width="224" height="56" fill="url(#decomp-grid-start)"/>
+    <rect x="28" y="126" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+  </g>
+
+  <g class="slab slab-4">
+    <g class="ghost">
+      <rect x="28" y="168" width="224" height="14" fill="#b7d99f"/>
+      <rect x="28" y="168" width="224" height="14" fill="url(#decomp-grid-start)"/>
+      <rect x="28" y="168" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+    </g>
+    <rect x="28" y="182" width="224" height="56" fill="#74b54b"/>
+    <rect x="28" y="182" width="224" height="56" fill="url(#decomp-grid-start)"/>
+    <rect x="28" y="182" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+  </g>
+
+  <g class="arrows" fill="none" stroke="#8f8f8f" stroke-width="1.5" marker-end="url(#decomp-arrow-start)">
+    <path d="M 28 63 C 14 63, 14 105, 24 105"/>
+    <path d="M 252 119 C 266 119, 266 77, 256 77"/>
+    <path d="M 28 161 C 14 161, 14 203, 24 203"/>
+    <path d="M 252 217 C 266 217, 266 175, 256 175"/>
+    <path d="M 28 259 C 14 259, 14 301, 24 301"/>
+    <path d="M 252 315 C 266 315, 266 273, 256 273"/>
+  </g>
+</svg>
+```
+:::
+
+::: {.column width="50%"}
+* In a realistic scenario, we would decompose the domain in both $x$ and $y$ directions
+  to reduce the amount of communication between MPI processes.
+:::
+
+::::
+
+## Example: Domain decomposition {#example-domain-decomposition-end transition="none-in slide-out"}
+
+For simplicity, we will decompose the domain in the $y$ direction only:
+
+:::: {.columns}
+
+::: {.column width="50%"}
+```{=html}
+<svg class="domain-decomp-animation domain-decomp-animation-end" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 378" width="280" height="378" style="display: block; margin: 0 auto;" role="img" aria-label="2D domain splitting into horizontal slabs, then ghost cells and halo exchange arrows appearing">
+  <style>
+    .domain-decomp-animation .ghost { opacity: 0; }
+    .domain-decomp-animation .arrows { opacity: 0; }
+    @keyframes slab2-split { from { transform: translateY(0); } to { transform: translateY(42px); } }
+    @keyframes slab3-split { from { transform: translateY(0); } to { transform: translateY(84px); } }
+    @keyframes slab4-split { from { transform: translateY(0); } to { transform: translateY(126px); } }
+    @keyframes ghost-appear { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes arrows-appear { to { opacity: 1; } }
+    @keyframes arrow-draw { to { stroke-dashoffset: 0; } }
+    .domain-decomp-animation.animate .slab-2 { animation: slab2-split 1s ease-in-out 0.1s both; }
+    .domain-decomp-animation.animate .slab-3 { animation: slab3-split 1s ease-in-out 0.1s both; }
+    .domain-decomp-animation.animate .slab-4 { animation: slab4-split 1s ease-in-out 0.1s both; }
+    .domain-decomp-animation.animate .ghost { animation: ghost-appear 0.6s ease 1.2s both; }
+    .domain-decomp-animation.animate .arrows { animation: arrows-appear 0.01s ease 2s both; }
+    .domain-decomp-animation.animate .arrows path { animation: arrow-draw 0.8s ease 2s forwards; }
+  </style>
+  <defs>
+    <pattern id="decomp-grid-end" width="14" height="14" patternUnits="userSpaceOnUse">
+      <path d="M 14 0 L 0 0 0 14" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+    </pattern>
+    <marker id="decomp-arrow-end" viewBox="0 0 10 10" markerWidth="4" markerHeight="4" refX="9" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8f8f8f"/>
+    </marker>
+  </defs>
+
+  <g class="slab slab-1">
+    <g class="ghost">
+      <rect x="28" y="70" width="224" height="14" fill="#b7d99f"/>
+      <rect x="28" y="70" width="224" height="14" fill="url(#decomp-grid-end)"/>
+      <rect x="28" y="70" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+    </g>
+    <rect x="28" y="14" width="224" height="56" fill="#74b54b"/>
+    <rect x="28" y="14" width="224" height="56" fill="url(#decomp-grid-end)"/>
+    <rect x="28" y="14" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+  </g>
+
+  <g class="slab slab-2">
+    <g class="ghost">
+      <rect x="28" y="56" width="224" height="14" fill="#b7d99f"/>
+      <rect x="28" y="56" width="224" height="14" fill="url(#decomp-grid-end)"/>
+      <rect x="28" y="56" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+      <rect x="28" y="126" width="224" height="14" fill="#b7d99f"/>
+      <rect x="28" y="126" width="224" height="14" fill="url(#decomp-grid-end)"/>
+      <rect x="28" y="126" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+    </g>
+    <rect x="28" y="70" width="224" height="56" fill="#74b54b"/>
+    <rect x="28" y="70" width="224" height="56" fill="url(#decomp-grid-end)"/>
+    <rect x="28" y="70" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+  </g>
+
+  <g class="slab slab-3">
+    <g class="ghost">
+      <rect x="28" y="112" width="224" height="14" fill="#b7d99f"/>
+      <rect x="28" y="112" width="224" height="14" fill="url(#decomp-grid-end)"/>
+      <rect x="28" y="112" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+      <rect x="28" y="182" width="224" height="14" fill="#b7d99f"/>
+      <rect x="28" y="182" width="224" height="14" fill="url(#decomp-grid-end)"/>
+      <rect x="28" y="182" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+    </g>
+    <rect x="28" y="126" width="224" height="56" fill="#74b54b"/>
+    <rect x="28" y="126" width="224" height="56" fill="url(#decomp-grid-end)"/>
+    <rect x="28" y="126" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+  </g>
+
+  <g class="slab slab-4">
+    <g class="ghost">
+      <rect x="28" y="168" width="224" height="14" fill="#b7d99f"/>
+      <rect x="28" y="168" width="224" height="14" fill="url(#decomp-grid-end)"/>
+      <rect x="28" y="168" width="224" height="14" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+    </g>
+    <rect x="28" y="182" width="224" height="56" fill="#74b54b"/>
+    <rect x="28" y="182" width="224" height="56" fill="url(#decomp-grid-end)"/>
+    <rect x="28" y="182" width="224" height="56" fill="none" stroke="#4f8f3d" stroke-width="1.2"/>
+  </g>
+
+  <g class="arrows" fill="none" stroke="#8f8f8f" stroke-width="1.5" marker-end="url(#decomp-arrow-end)">
+    <path d="M 28 63 C 14 63, 14 105, 24 105"/>
+    <path d="M 252 119 C 266 119, 266 77, 256 77"/>
+    <path d="M 28 161 C 14 161, 14 203, 24 203"/>
+    <path d="M 252 217 C 266 217, 266 175, 256 175"/>
+    <path d="M 28 259 C 14 259, 14 301, 24 301"/>
+    <path d="M 252 315 C 266 315, 266 273, 256 273"/>
+  </g>
+</svg>
+```
+:::
+
+::: {.column width="50%"}
+* In a realistic scenario, we would decompose the domain in both $x$ and $y$ directions
+  to reduce the amount of communication between MPI processes.
+:::
+
+::::
+
+```{=html}
+<script>
+window.addEventListener("load", () => {
+  const slideId = "example-domain-decomposition-end";
+  let timers = [];
+
+  const resetAnimation = svg => {
+    timers.forEach(window.clearTimeout);
+    timers = [];
+    svg.classList.remove("animate");
+    svg.querySelectorAll(".arrows path").forEach(path => {
+      const len = path.getTotalLength();
+      path.style.strokeDasharray = len;
+      path.style.strokeDashoffset = len;
+    });
+  };
+
+  const startAnimation = svg => {
+    resetAnimation(svg);
+    void svg.getBoundingClientRect();
+    timers.push(window.setTimeout(() => svg.classList.add("animate"), 100));
+  };
+
+  Reveal.on("slidechanged", event => {
+    if (event.currentSlide.id !== slideId) return;
+
+    const svg = event.currentSlide.querySelector(".domain-decomp-animation-end");
+    startAnimation(svg);
+  });
+});
+</script>
+```

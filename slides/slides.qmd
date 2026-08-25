@@ -360,23 +360,8 @@ while not converged:
     next iteration
 ```
 
-## Example: Domain decomposition
-
-For simplicity, we will decompose the domain in the $y$ direction only:
-
-::: columns
-::: {.column width="60%"}
-![](media/domain-full.svg){width=40% fig-align="center" fig-alt="Full 2D Jacobi domain before decomposition"}
-
-* In a realistic scenario, we would decompose the domain in both $x$ and $y$ directions
-  to reduce the amount of communication between MPI processes.
-:::
-::: {.column width="30%"}
-![](media/domain-decomp-y.svg){width=100% fig-alt="Domain decomposed into horizontal slabs with neighbour halo communication"}
-:::
-:::
-
-## Exercise: Jacobi solver
+<!-- The inline SVG images are quite long hence included separately -->
+{{< include includes/jacobi-domain-decomposition.qmd >}}
 
 ## Exercise 01: Jacobi solver
 
@@ -511,8 +496,9 @@ There is an "advanced" extension task if you finish early.
 * To achieve the best performance, it is often necessary to bind specific CPU
   cores, a specific GPU and a specific NIC to each MPI process.
 * It is technically possible to figure out the topology yourself using tools
-  such as `hwloc-ls` and `nvidia-smi topo` but it is usually best and easiest to
-  check the system documentation to see if one has been provided.
+  such as `hwloc-ls` and `nvidia-smi topo` and then write a binding script but
+  it is usually best and easiest to check the system documentation to see if one
+  has been provided.
 * Typically, these scripts are used in your MPI launch line:
   ```{.bash code-line-numbers=false}
   mpiexec <MPI options> ./binding_script.sh <application> <options>
@@ -541,14 +527,47 @@ export UCX_NET_DEVICES=${NICS[${lrank}]}
 numactl --physcpubind="${CPUS[${lrank}]}" --membind="${MEMS[${lrank}]}" "$@"
 ```
 
-## Packing kernels
+## Packing kernels {.smaller}
+
+* Since there is a greater overhead in launching GPU kernels, sending lots of
+  small messages between GPUs is often more inefficient than
+  doing the same in a CPU-only MPI application.
+* It is usually more efficient to "pack" multiple small messages into a single
+  larger buffer and send that instead.
+* For each pair of communicating processes, you can achieve this as follows:
+  1. Allocate a single contiguous GPU-resident buffer to send data and another
+     to receive data.
+  1. Launch a kernel to pack the data to be sent into the send buffer.
+  1. Send the packed buffer to the other GPU using GPU-aware MPI.
+  1. Launch a kernel to unpack the received buffer at the other end as required.
+* If you use MPI derived datatypes with non-contiguous data, the MPI
+  implementation will usually not pack the data for you so communication will be
+  inefficient → Replace with packing kernels as described above.
+* Since packing kernels will typically be quite small, it is best to launch them
+  asynchronously (`nowait` clause for OpenMP).
 
 <!-- Remove MPI derived datatypes -->
 <!-- Mention asynchronous kernels -->
 
-## Non-blocking MPI communication
+## Other MPI optimization techniques {.smaller}
 
-## Collective operations
+* You probably don't need `MPI_Barrier`s for correctness. Unnecessary
+  synchronization can be expensive.
+* Where you can, use non-blocking communication routines.
+  * These are usually prefixed with `MPI_I` e.g. `MPI_Isend`, `MPI_Irecv`.
+  * These allow you to overlap communication with computation.
+  * Remember to synchronize appropriately e.g. with `MPI_Wait` before trying to
+    access received data.
+* Use MPI collective communication routines (e.g. `MPI_Allreduce`, `MPI_Bcast`,
+  `MPI_Alltoall`) where possible (non-blocking versions available since MPI
+  3.0).
+  * Many MPI implementations have optimized collective communication routines
+    that can be significantly more efficient than implementing collectives
+    naively with point-to-point calls.
+  * Figuring out when you might be accidentally implementing collectives naively
+    can be non-trivial.
+  * Neighbourhood collectives may be more efficient for exchanging halo regions
+    in a decomposed domain.
 
 ## Exercise: Packing kernels and non-blocking communication
 
