@@ -1146,18 +1146,29 @@ window.addEventListener("load", () => {
 <li>Many are also relevant to CPU-only MPI applications but the relative performance gains may be more significant on GPUs.</li>
 </ul>
 </section>
-<section id="recap-supercomputer-gpu-topology" class="slide level2">
-<h2>Recap: Supercomputer GPU topology</h2>
-<p><img data-src="media/supercomputer-gpu-topology.svg"> <!-- The inline SVG images are quite long hence included separately --> <!-- {{< include includes/mapping-mpi-processes.qmd >}} --></p>
-</section>
-<section id="numa-affinity-and-gpu-distribution" class="slide level2 smaller">
+<section id="numa-affinity-and-gpu-distribution" class="slide level2 smaller" data-transition="slide-in fade-out">
 <h2>NUMA, affinity and GPU distribution</h2>
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="media/supercomputer-gpu-topology.svg" class="quarto-figure quarto-figure-center" height="240"></p>
+</figure>
+</div>
 <ul>
-<li><p>Note that in the node diagram, GPUs 0 and 2 are “closest” to CPU 0 and GPUs 1 and 3 are “closest” to CPU 1.</p></li>
-<li><p>Similarly, GPUs 0 and 1 are “closest” to NIC 0 and GPUs 2 and 3 are “closest” to NIC 1.</p></li>
-<li><p>This diagram is somewhat arbitrary and the actual topology differs between systems.</p></li>
-<li><p>Within just the CPU, for a given CPU cores, some memory domains are “closer” than others. This is known as Non-Uniform Memory Access (NUMA).</p></li>
-<li><p>The differences in distance can mean, for a specific GPU, it may be faster to transfer/read data to/from specific CPU cores and NICs compared to others.</p></li>
+<li>Note that in the node diagram, GPUs 0 and 2 are “closest” to CPU 0 and GPUs 1 and 3 are “closest” to CPU 1.</li>
+<li>Similarly, GPUs 0 and 1 are “closest” to NIC 0 and GPUs 2 and 3 are “closest” to NIC 1.</li>
+<li>This diagram is somewhat arbitrary and the actual topology differs between systems.</li>
+<li>Within just the CPU, for a given CPU cores, some memory domains are “closer” than others. This is known as Non-Uniform Memory Access (NUMA).</li>
+<li>The differences in distance can mean, for a specific GPU, it may be faster to transfer/read data to/from specific CPU cores and NICs compared to others.</li>
+</ul>
+</section>
+<section id="numa-affinity-and-gpu-distribution-1" class="slide level2 smaller" data-transition="fade-in slide-out">
+<h2>NUMA, affinity and GPU distribution</h2>
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="media/supercomputer-gpu-topology.svg" class="quarto-figure quarto-figure-center" height="240"></p>
+</figure>
+</div>
+<ul>
 <li><p>To achieve the best performance, it is often necessary to bind specific CPU cores, a specific GPU and a specific NIC to each MPI process.</p></li>
 <li><p>It is technically possible to figure out the topology yourself using tools such as <code>hwloc-ls</code> and <code>nvidia-smi topo</code> and then write a binding script but it is usually best and easiest to check the system documentation to see if one has been provided.</p></li>
 <li><p>Typically, these scripts are used in your MPI launch line:</p>
@@ -1166,7 +1177,7 @@ window.addEventListener("load", () => {
 </section>
 <section id="example-gpu-binding-script-csd3-ampere-nodes" class="slide level2">
 <h2>Example GPU binding script (CSD3 Ampere nodes)</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20" data-code-line-numbers="|2|4-5|7-9|11-12|14-18|"><pre class="sourceCode numberSource bash number-lines code-with-copy"><code class="sourceCode bash"><span id="cb20-1"><a href="" aria-label="1"></a><span class="co">#!/bin/bash</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20" data-code-line-numbers="|2|4-5|7-9|11-12|14-18"><pre class="sourceCode numberSource bash number-lines code-with-copy"><code class="sourceCode bash"><span id="cb20-1"><a href="" aria-label="1"></a><span class="co">#!/bin/bash</span></span>
 <span id="cb20-2"><a href="" aria-label="2"></a><span class="va">GPUS</span><span class="op">=</span><span class="va">(</span>0 1 2 3<span class="va">)</span></span>
 <span id="cb20-3"><a href="" aria-label="3"></a></span>
 <span id="cb20-4"><a href="" aria-label="4"></a><span class="co"># associate GPUs 0,1 with MLX0, GPUs 2,3 with MLX1</span></span>
@@ -1187,9 +1198,34 @@ window.addEventListener("load", () => {
 </section>
 <section id="packing-kernels" class="slide level2 smaller">
 <h2>Packing kernels</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
 <ul>
 <li>Since there is a greater overhead in launching GPU kernels, sending lots of small messages between GPUs is often more inefficient than doing the same in a CPU-only MPI application.</li>
 <li>It is usually more efficient to “pack” multiple small messages into a single larger buffer and send that instead.</li>
+<li>If you use MPI derived datatypes with non-contiguous data, the MPI implementation will usually not pack the data for you so communication will be inefficient → Replace with packing kernels.</li>
+<li>Since packing kernels will typically be quite small, it is best to launch them asynchronously (<code>nowait</code> clause for OpenMP and <code>taskwait</code> to synchronize).</li>
+</ul>
+</div><div class="column" style="width:50%;">
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="media/packing-non-packed.svg" style="width:100.0%" data-text-align="center"></p>
+<figcaption>Communication without packing</figcaption>
+</figure>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="media/packing-packed.svg" style="width:100.0%" data-text-align="center"></p>
+<figcaption>Communication with packing</figcaption>
+</figure>
+</div>
+</div></div>
+</section>
+<section id="packing-kernels-1" class="slide level2 smaller">
+<h2>Packing kernels</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<ul>
 <li>For each pair of communicating processes, you can achieve this as follows:
 <ol type="1">
 <li>Allocate a single contiguous GPU-resident buffer to send data and another to receive data.</li>
@@ -1197,11 +1233,21 @@ window.addEventListener("load", () => {
 <li>Send the packed buffer to the other GPU using GPU-aware MPI.</li>
 <li>Launch a kernel to unpack the received buffer at the other end as required.</li>
 </ol></li>
-<li>If you use MPI derived datatypes with non-contiguous data, the MPI implementation will usually not pack the data for you so communication will be inefficient → Replace with packing kernels as described above.</li>
-<li>Since packing kernels will typically be quite small, it is best to launch them asynchronously (<code>nowait</code> clause for OpenMP).</li>
 </ul>
-<!-- Remove MPI derived datatypes -->
-<!-- Mention asynchronous kernels -->
+</div><div class="column" style="width:50%;">
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="media/packing-non-packed.svg" style="width:100.0%" data-text-align="center"></p>
+<figcaption>Communication without packing</figcaption>
+</figure>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="media/packing-packed.svg" style="width:100.0%" data-text-align="center"></p>
+<figcaption>Communication with packing</figcaption>
+</figure>
+</div>
+</div></div>
 </section>
 <section id="other-mpi-optimization-techniques" class="slide level2 smaller">
 <h2>Other MPI optimization techniques</h2>
@@ -1221,11 +1267,119 @@ window.addEventListener("load", () => {
 </ul></li>
 </ul>
 </section>
-<section id="exercise-packing-kernels-and-non-blocking-communication" class="slide level2">
-<h2>Exercise: Packing kernels and non-blocking communication</h2>
+<section id="exercise-02-packing-kernels-and-non-blocking-communication" class="slide level2 smaller">
+<h2>Exercise 02: Packing kernels and non-blocking communication</h2>
+<p>Replace multiple blocking messages with a packing kernel and non-blocking communication. The starting point performs a ring-shift communication between GPUs where each rank sends <code>num_messages</code> small non-contiguous messages to its right neighbour. You will need to do the following:</p>
+<ol type="1">
+<li>Implement the <code>pack_kernel</code> that gathers <code>num_messages</code> strided messages into a contiguous buffer using an OpenMP target kernel.</li>
+<li>Implement the <code>unpack_kernel</code> that scatters a contiguous buffer back into the strided layout.</li>
+<li>In the packing loop, call <code>pack_kernel</code>, post <code>MPI_Isend</code>/<code>MPI_Irecv</code> inside a <code>!$omp target data use_device_addr</code> region, call <code>MPI_Waitall</code>, and call <code>unpack_kernel</code>.</li>
+</ol>
+<p>You can either choose CUDA+C++ or OpenMP+Fortran. Further details are provided in the respective README files.</p>
+<p>There is an extension task if you finish early.</p>
 </section>
-<section id="exercise-solution" class="slide level2">
-<h2>Exercise Solution</h2>
+<section id="exercise-02-solution" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 02: Solution</h2>
+<h3 id="implementing-the-pack_kernel">Implementing the <code>pack_kernel</code></h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21" data-startfrom="93"><pre class="sourceCode numberSource fortran number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode fortranfixed hljs" style="counter-reset: source-line 92;"><span id="cb21-93" class="hljs-ln-code"><a href="" aria-label="93"></a>    <span class="co">! </span><span class="al">TODO</span><span class="co">: Implement the pack kernel.</span></span>
+<span id="cb21-94" class="hljs-ln-code"><a href="" aria-label="94"></a>    <span class="co">! Each thread copies one element from the strided source buffer (stride, num_messages)</span></span>
+<span id="cb21-95" class="hljs-ln-code"><a href="" aria-label="95"></a>    <span class="co">! to the contiguous destination buffer (msg_size, num_messages):</span></span>
+<span id="cb21-96" class="hljs-ln-code"><a href="" aria-label="96"></a>    <span class="co">!   dst(i, m) = src(i, m)   for i = 1..msg_size, m = 1..num_messages</span></span>
+<span id="cb21-97" class="hljs-ln-code"><a href="" aria-label="97"></a>    <span class="co">! Use a !$omp target teams distribute parallel do collapse(2) construct.</span></span>
+<span id="cb21-98" class="hljs-ln-code"><a href="" aria-label="98"></a>    <span class="kw">subroutine</span> pack_kernel(dst, src, num_messages, msg_size, stride)</span>
+<span id="cb21-99" class="hljs-ln-code"><a href="" aria-label="99"></a>        <span class="dt">real(rk)</span>, <span class="dt">intent(inout)</span> <span class="dt">::</span> dst(:, :)</span>
+<span id="cb21-100" class="hljs-ln-code"><a href="" aria-label="100"></a>        <span class="dt">real(rk)</span>, <span class="dt">intent(in)</span> <span class="dt">::</span> src(:, :)</span>
+<span id="cb21-101" class="hljs-ln-code"><a href="" aria-label="101"></a>        <span class="dt">integer</span>, <span class="dt">intent(in)</span> <span class="dt">::</span> num_messages, msg_size, stride</span>
+<span id="cb21-102" class="hljs-ln-code"><a href="" aria-label="102"></a>        <span class="co">! </span><span class="al">TODO</span></span>
+<span id="cb21-103" class="hljs-ln-code"><a href="" aria-label="103"></a>    <span class="kw">end subroutine</span> pack_kernel</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-02-solution-1" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 02: Solution</h2>
+<h3 id="implementing-the-pack_kernel-1">Implementing the <code>pack_kernel</code></h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22" data-startfrom="93"><pre class="sourceCode numberSource fortran number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode fortranfixed hljs" style="counter-reset: source-line 92;"><span id="cb22-93" class="hljs-ln-code"><a href="" aria-label="93"></a>    <span class="co">! Pack strided messages into a contiguous buffer.</span></span>
+<span id="cb22-94" class="hljs-ln-code"><a href="" aria-label="94"></a>    <span class="kw">subroutine</span> pack_kernel(dst, src, num_messages, msg_size, stride)</span>
+<span id="cb22-95" class="hljs-ln-code"><a href="" aria-label="95"></a>        <span class="dt">real(rk)</span>, <span class="dt">intent(inout)</span> <span class="dt">::</span> dst(:, :)</span>
+<span id="cb22-96" class="hljs-ln-code"><a href="" aria-label="96"></a>        <span class="dt">real(rk)</span>, <span class="dt">intent(in)</span> <span class="dt">::</span> src(:, :)</span>
+<span id="cb22-97" class="hljs-ln-code"><a href="" aria-label="97"></a>        <span class="dt">integer</span>, <span class="dt">intent(in)</span> <span class="dt">::</span> num_messages, msg_size, stride</span>
+<span id="cb22-98" class="hljs-ln-code"><a href="" aria-label="98"></a>        <span class="dt">integer</span> <span class="dt">::</span> m, i</span>
+<span id="cb22-99" class="hljs-ln-code"><a href="" aria-label="99"></a>        <span class="co">!$omp target teams distribute parallel do collapse(2)</span></span>
+<span id="cb22-100" class="hljs-ln-code"><a href="" aria-label="100"></a>        <span class="kw">do</span> m <span class="kw">=</span> <span class="dv">1</span>, num_messages</span>
+<span id="cb22-101" class="hljs-ln-code"><a href="" aria-label="101"></a>            <span class="kw">do</span> i <span class="kw">=</span> <span class="dv">1</span>, msg_size</span>
+<span id="cb22-102" class="hljs-ln-code"><a href="" aria-label="102"></a>                dst(i, m) <span class="kw">=</span> src(i, m)</span>
+<span id="cb22-103" class="hljs-ln-code"><a href="" aria-label="103"></a>            <span class="kw">end do</span></span>
+<span id="cb22-104" class="hljs-ln-code"><a href="" aria-label="104"></a>        <span class="kw">end do</span></span>
+<span id="cb22-105" class="hljs-ln-code"><a href="" aria-label="105"></a>    <span class="kw">end subroutine</span> pack_kernel</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-02-solution-2" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 02: Solution</h2>
+<h3 id="implementing-the-unpack_kernel">Implementing the <code>unpack_kernel</code></h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23" data-startfrom="105"><pre class="sourceCode numberSource fortran number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode fortranfixed hljs" style="counter-reset: source-line 104;"><span id="cb23-105" class="hljs-ln-code"><a href="" aria-label="105"></a>    <span class="co">! </span><span class="al">TODO</span><span class="co">: Implement the unpack kernel.</span></span>
+<span id="cb23-106" class="hljs-ln-code"><a href="" aria-label="106"></a>    <span class="co">! Each thread copies one element from the contiguous source buffer (msg_size, num_messages)</span></span>
+<span id="cb23-107" class="hljs-ln-code"><a href="" aria-label="107"></a>    <span class="co">! to the strided destination buffer (stride, num_messages):</span></span>
+<span id="cb23-108" class="hljs-ln-code"><a href="" aria-label="108"></a>    <span class="co">!   dst(i, m) = src(i, m)   for i = 1..msg_size, m = 1..num_messages</span></span>
+<span id="cb23-109" class="hljs-ln-code"><a href="" aria-label="109"></a>    <span class="co">! Use a !$omp target teams distribute parallel do collapse(2) construct.</span></span>
+<span id="cb23-110" class="hljs-ln-code"><a href="" aria-label="110"></a>    <span class="kw">subroutine</span> unpack_kernel(dst, src, num_messages, msg_size, stride)</span>
+<span id="cb23-111" class="hljs-ln-code"><a href="" aria-label="111"></a>        <span class="dt">real(rk)</span>, <span class="dt">intent(inout)</span> <span class="dt">::</span> dst(:, :)</span>
+<span id="cb23-112" class="hljs-ln-code"><a href="" aria-label="112"></a>        <span class="dt">real(rk)</span>, <span class="dt">intent(in)</span> <span class="dt">::</span> src(:, :)</span>
+<span id="cb23-113" class="hljs-ln-code"><a href="" aria-label="113"></a>        <span class="dt">integer</span>, <span class="dt">intent(in)</span> <span class="dt">::</span> num_messages, msg_size, stride</span>
+<span id="cb23-114" class="hljs-ln-code"><a href="" aria-label="114"></a>        <span class="co">! </span><span class="al">TODO</span></span>
+<span id="cb23-115" class="hljs-ln-code"><a href="" aria-label="115"></a>    <span class="kw">end subroutine</span> unpack_kernel</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-02-solution-3" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 02: Solution</h2>
+<h3 id="implementing-the-unpack_kernel-1">Implementing the <code>unpack_kernel</code></h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24" data-startfrom="107"><pre class="sourceCode numberSource fortran number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode fortranfixed hljs" style="counter-reset: source-line 106;"><span id="cb24-107" class="hljs-ln-code"><a href="" aria-label="107"></a>    <span class="co">! Unpack a contiguous buffer back into strided messages.</span></span>
+<span id="cb24-108" class="hljs-ln-code"><a href="" aria-label="108"></a>    <span class="kw">subroutine</span> unpack_kernel(dst, src, num_messages, msg_size, stride)</span>
+<span id="cb24-109" class="hljs-ln-code"><a href="" aria-label="109"></a>        <span class="dt">real(rk)</span>, <span class="dt">intent(inout)</span> <span class="dt">::</span> dst(:, :)</span>
+<span id="cb24-110" class="hljs-ln-code"><a href="" aria-label="110"></a>        <span class="dt">real(rk)</span>, <span class="dt">intent(in)</span> <span class="dt">::</span> src(:, :)</span>
+<span id="cb24-111" class="hljs-ln-code"><a href="" aria-label="111"></a>        <span class="dt">integer</span>, <span class="dt">intent(in)</span> <span class="dt">::</span> num_messages, msg_size, stride</span>
+<span id="cb24-112" class="hljs-ln-code"><a href="" aria-label="112"></a>        <span class="dt">integer</span> <span class="dt">::</span> m, i</span>
+<span id="cb24-113" class="hljs-ln-code"><a href="" aria-label="113"></a>        <span class="co">!$omp target teams distribute parallel do collapse(2)</span></span>
+<span id="cb24-114" class="hljs-ln-code"><a href="" aria-label="114"></a>        <span class="kw">do</span> m <span class="kw">=</span> <span class="dv">1</span>, num_messages</span>
+<span id="cb24-115" class="hljs-ln-code"><a href="" aria-label="115"></a>            <span class="kw">do</span> i <span class="kw">=</span> <span class="dv">1</span>, msg_size</span>
+<span id="cb24-116" class="hljs-ln-code"><a href="" aria-label="116"></a>                dst(i, m) <span class="kw">=</span> src(i, m)</span>
+<span id="cb24-117" class="hljs-ln-code"><a href="" aria-label="117"></a>            <span class="kw">end do</span></span>
+<span id="cb24-118" class="hljs-ln-code"><a href="" aria-label="118"></a>        <span class="kw">end do</span></span>
+<span id="cb24-119" class="hljs-ln-code"><a href="" aria-label="119"></a>    <span class="kw">end subroutine</span> unpack_kernel</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-02-solution-4" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 02: Solution</h2>
+<h3 id="the-packing-loop">The packing loop</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25" data-startfrom="246"><pre class="sourceCode numberSource fortran number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode fortranfixed hljs" style="counter-reset: source-line 245;"><span id="cb25-246" class="hljs-ln-code"><a href="" aria-label="246"></a>    <span class="kw">do</span> iter <span class="kw">=</span> <span class="dv">1</span>, num_iters</span>
+<span id="cb25-247" class="hljs-ln-code"><a href="" aria-label="247"></a>        <span class="co">! </span><span class="al">TODO</span><span class="co">: Call pack_kernel to gather send into send_buf</span></span>
+<span id="cb25-248" class="hljs-ln-code"><a href="" aria-label="248"></a>        <span class="co">!   call pack_kernel(send_buf, send, num_messages, msg_size, stride)</span></span>
+<span id="cb25-249" class="hljs-ln-code"><a href="" aria-label="249"></a></span>
+<span id="cb25-250" class="hljs-ln-code"><a href="" aria-label="250"></a>        <span class="co">! </span><span class="al">TODO</span><span class="co">: Post MPI_Isend (send_buf -&gt; next) and MPI_Irecv (recv_buf &lt;- prev)</span></span>
+<span id="cb25-251" class="hljs-ln-code"><a href="" aria-label="251"></a>        <span class="co">!   inside a !$omp target data use_device_addr(send_buf, recv_buf) region.</span></span>
+<span id="cb25-252" class="hljs-ln-code"><a href="" aria-label="252"></a>        <span class="co">!   The signatures are</span></span>
+<span id="cb25-253" class="hljs-ln-code"><a href="" aria-label="253"></a>        <span class="co">!     MPI_Isend(buf, count, datatype, dest, tag, comm, request, ierror)</span></span>
+<span id="cb25-254" class="hljs-ln-code"><a href="" aria-label="254"></a>        <span class="co">!     MPI_Irecv(buf, count, datatype, source, tag, comm, request, ierror)</span></span>
+<span id="cb25-255" class="hljs-ln-code"><a href="" aria-label="255"></a>        <span class="co">!   Then call MPI_Waitall to complete both requests:</span></span>
+<span id="cb25-256" class="hljs-ln-code"><a href="" aria-label="256"></a>        <span class="co">!     MPI_Waitall(count, array_of_requests, array_of_statuses, ierror)</span></span>
+<span id="cb25-257" class="hljs-ln-code"><a href="" aria-label="257"></a></span>
+<span id="cb25-258" class="hljs-ln-code"><a href="" aria-label="258"></a>        <span class="co">! </span><span class="al">TODO</span><span class="co">: Call unpack_kernel to scatter recv_buf into recv</span></span>
+<span id="cb25-259" class="hljs-ln-code"><a href="" aria-label="259"></a>        <span class="co">!   call unpack_kernel(recv, recv_buf, num_messages, msg_size, stride)</span></span>
+<span id="cb25-260" class="hljs-ln-code"><a href="" aria-label="260"></a>    <span class="kw">end do</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-02-solution-5" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 02: Solution</h2>
+<h3 id="the-packing-loop-1">The packing loop</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26" data-startfrom="250"><pre class="sourceCode numberSource fortran number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode fortranfixed hljs" style="counter-reset: source-line 249;"><span id="cb26-250" class="hljs-ln-code"><a href="" aria-label="250"></a>    <span class="kw">do</span> iter <span class="kw">=</span> <span class="dv">1</span>, num_iters</span>
+<span id="cb26-251" class="hljs-ln-code"><a href="" aria-label="251"></a>        <span class="kw">call</span> pack_kernel(send_buf, send, num_messages, msg_size, stride)</span>
+<span id="cb26-252" class="hljs-ln-code"><a href="" aria-label="252"></a></span>
+<span id="cb26-253" class="hljs-ln-code"><a href="" aria-label="253"></a>        <span class="co">!$omp target data use_device_addr(send_buf, recv_buf)</span></span>
+<span id="cb26-254" class="hljs-ln-code"><a href="" aria-label="254"></a>        <span class="kw">call</span> MPI_Isend(send_buf, packed_size, MPI_REAL_TYPE, next, <span class="dv">0</span>, <span class="kw">&amp;</span></span>
+<span id="cb26-255" class="hljs-ln-code"><a href="" aria-label="255"></a>                       MPI_COMM_WORLD, reqs(<span class="dv">1</span>), ierr)</span>
+<span id="cb26-256" class="hljs-ln-code"><a href="" aria-label="256"></a>        <span class="kw">call</span> mpi_check(ierr, <span class="st">"MPI_Isend"</span>)</span>
+<span id="cb26-257" class="hljs-ln-code"><a href="" aria-label="257"></a>        <span class="kw">call</span> MPI_Irecv(recv_buf, packed_size, MPI_REAL_TYPE, prev, <span class="dv">0</span>, <span class="kw">&amp;</span></span>
+<span id="cb26-258" class="hljs-ln-code"><a href="" aria-label="258"></a>                       MPI_COMM_WORLD, reqs(<span class="dv">2</span>), ierr)</span>
+<span id="cb26-259" class="hljs-ln-code"><a href="" aria-label="259"></a>        <span class="kw">call</span> mpi_check(ierr, <span class="st">"MPI_Irecv"</span>)</span>
+<span id="cb26-260" class="hljs-ln-code"><a href="" aria-label="260"></a>        <span class="kw">call</span> MPI_Waitall(<span class="dv">2</span>, reqs, statuses, ierr)</span>
+<span id="cb26-261" class="hljs-ln-code"><a href="" aria-label="261"></a>        <span class="kw">call</span> mpi_check(ierr, <span class="st">"MPI_Waitall"</span>)</span>
+<span id="cb26-262" class="hljs-ln-code"><a href="" aria-label="262"></a>        <span class="co">!$omp end target data</span></span>
+<span id="cb26-263" class="hljs-ln-code"><a href="" aria-label="263"></a></span>
+<span id="cb26-264" class="hljs-ln-code"><a href="" aria-label="264"></a>        <span class="kw">call</span> unpack_kernel(recv, recv_buf, num_messages, msg_size, stride)</span>
+<span id="cb26-265" class="hljs-ln-code"><a href="" aria-label="265"></a>    <span class="kw">end do</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="overlapping-communication-and-computation" class="slide level2">
 <h2>Overlapping communication and computation</h2>
@@ -1233,7 +1387,7 @@ window.addEventListener("load", () => {
 <section id="exercise-overlapping-communication-and-computation" class="slide level2">
 <h2>Exercise: Overlapping communication and computation</h2>
 </section>
-<section id="exercise-solution-1" class="slide level2">
+<section id="exercise-solution" class="slide level2">
 <h2>Exercise: Solution</h2>
 </section></section>
 <section>
