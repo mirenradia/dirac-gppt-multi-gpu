@@ -84,3 +84,13 @@ Once you are familiar with the code, please work on the `TODO`s in
   ```bash
   make run
   ```
+
+## Extension task
+
+### Description
+
+Investigate how the speedup changes as the number of separate messages and the
+size of the messages changes. You can adjust these parameters by passing the
+following flags to the application:
+* `-num_messages <number of messages>` (default: 128)
+* `-msg_size <size>` (default: 1024)
