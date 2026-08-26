@@ -474,14 +474,9 @@ There is an "advanced" extension task if you finish early.
 * Many are also relevant to CPU-only MPI applications but the relative
   performance gains may be more significant on GPUs.
 
-## Recap: Supercomputer GPU topology
+## NUMA, affinity and GPU distribution {.smaller transition="slide-in fade-out"}
 
-![](media/supercomputer-gpu-topology.svg)
-<!-- The inline SVG images are quite long hence included separately -->
-<!-- {{< include includes/mapping-mpi-processes.qmd >}} -->
-
-
-## NUMA, affinity and GPU distribution {.smaller}
+![](media/supercomputer-gpu-topology.svg){.nostretch height="240px" fig-align="center"}
 
 * Note that in the node diagram, GPUs 0 and 2 are "closest" to CPU 0 and GPUs 1
   and 3 are "closest" to CPU 1.
@@ -493,6 +488,11 @@ There is an "advanced" extension task if you finish early.
   than others. This is known as Non-Uniform Memory Access (NUMA).
 * The differences in distance can mean, for a specific GPU, it may be faster to
   transfer/read data to/from specific CPU cores and NICs compared to others.
+
+## NUMA, affinity and GPU distribution {.smaller transition="fade-in slide-out"}
+
+![](media/supercomputer-gpu-topology.svg){.nostretch height="240px" fig-align="center"}
+
 * To achieve the best performance, it is often necessary to bind specific CPU
   cores, a specific GPU and a specific NIC to each MPI process.
 * It is technically possible to figure out the topology yourself using tools
@@ -506,7 +506,7 @@ There is an "advanced" extension task if you finish early.
 
 ## Example GPU binding script (CSD3 Ampere nodes)
 
-```{.bash code-line-numbers="|2|4-5|7-9|11-12|14-18|"}
+```{.bash code-line-numbers="|2|4-5|7-9|11-12|14-18"}
 #!/bin/bash
 GPUS=(0 1 2 3)
 
@@ -529,25 +529,49 @@ numactl --physcpubind="${CPUS[${lrank}]}" --membind="${MEMS[${lrank}]}" "$@"
 
 ## Packing kernels {.smaller}
 
+:::: {.columns}
+
+::: {.column width="50%"}
 * Since there is a greater overhead in launching GPU kernels, sending lots of
   small messages between GPUs is often more inefficient than
   doing the same in a CPU-only MPI application.
 * It is usually more efficient to "pack" multiple small messages into a single
   larger buffer and send that instead.
+* If you use MPI derived datatypes with non-contiguous data, the MPI
+  implementation will usually not pack the data for you so communication will be
+  inefficient → Replace with packing kernels.
+* Since packing kernels will typically be quite small, it is best to launch them
+  asynchronously (`nowait` clause for OpenMP and `taskwait` to synchronize).
+:::
+
+::: {.column width="50%"}
+![Communication without packing](media/packing-non-packed.svg){width="100%" text-align="center"}
+
+![Communication with packing](media/packing-packed.svg){width="100%" text-align="center"}
+:::
+
+::::
+
+## Packing kernels {.smaller}
+
+:::: {.columns}
+
+::: {.column width="50%"}
 * For each pair of communicating processes, you can achieve this as follows:
   1. Allocate a single contiguous GPU-resident buffer to send data and another
      to receive data.
   1. Launch a kernel to pack the data to be sent into the send buffer.
   1. Send the packed buffer to the other GPU using GPU-aware MPI.
   1. Launch a kernel to unpack the received buffer at the other end as required.
-* If you use MPI derived datatypes with non-contiguous data, the MPI
-  implementation will usually not pack the data for you so communication will be
-  inefficient → Replace with packing kernels as described above.
-* Since packing kernels will typically be quite small, it is best to launch them
-  asynchronously (`nowait` clause for OpenMP).
+:::
 
-<!-- Remove MPI derived datatypes -->
-<!-- Mention asynchronous kernels -->
+::: {.column width="50%"}
+![Communication without packing](media/packing-non-packed.svg){width="100%" text-align="center"}
+
+![Communication with packing](media/packing-packed.svg){width="100%" text-align="center"}
+:::
+
+::::
 
 ## Other MPI optimization techniques {.smaller}
 
@@ -569,9 +593,146 @@ numactl --physcpubind="${CPUS[${lrank}]}" --membind="${MEMS[${lrank}]}" "$@"
   * Neighbourhood collectives may be more efficient for exchanging halo regions
     in a decomposed domain.
 
-## Exercise: Packing kernels and non-blocking communication
+## Exercise 02: Packing kernels and non-blocking communication {.smaller}
 
-## Exercise Solution
+Replace multiple blocking messages with a packing kernel and non-blocking
+communication. The starting point performs a ring-shift communication between
+GPUs where each rank sends `num_messages` small non-contiguous messages to its
+right neighbour. You will need to do the following:
+
+1. Implement the `pack_kernel` that gathers `num_messages` strided messages into
+   a contiguous buffer using an OpenMP target kernel.
+1. Implement the `unpack_kernel` that scatters a contiguous buffer back into the
+   strided layout.
+1. In the packing loop, call `pack_kernel`, post `MPI_Isend`/`MPI_Irecv` inside a
+   `!$omp target data use_device_addr` region, call `MPI_Waitall`, and call
+   `unpack_kernel`.
+
+You can either choose CUDA+C++ or OpenMP+Fortran. Further details are provided
+in the respective README files.
+
+There is an extension task if you finish early.
+
+## Exercise 02: Solution {auto-animate="true"}
+
+### Implementing the `pack_kernel`
+
+```{.fortran startFrom="93"}
+    ! TODO: Implement the pack kernel.
+    ! Each thread copies one element from the strided source buffer (stride, num_messages)
+    ! to the contiguous destination buffer (msg_size, num_messages):
+    !   dst(i, m) = src(i, m)   for i = 1..msg_size, m = 1..num_messages
+    ! Use a !$omp target teams distribute parallel do collapse(2) construct.
+    subroutine pack_kernel(dst, src, num_messages, msg_size, stride)
+        real(rk), intent(inout) :: dst(:, :)
+        real(rk), intent(in) :: src(:, :)
+        integer, intent(in) :: num_messages, msg_size, stride
+        ! TODO
+    end subroutine pack_kernel
+```
+
+## Exercise 02: Solution {auto-animate="true"}
+
+### Implementing the `pack_kernel`
+
+```{.fortran startFrom="93"}
+    ! Pack strided messages into a contiguous buffer.
+    subroutine pack_kernel(dst, src, num_messages, msg_size, stride)
+        real(rk), intent(inout) :: dst(:, :)
+        real(rk), intent(in) :: src(:, :)
+        integer, intent(in) :: num_messages, msg_size, stride
+        integer :: m, i
+        !$omp target teams distribute parallel do collapse(2)
+        do m = 1, num_messages
+            do i = 1, msg_size
+                dst(i, m) = src(i, m)
+            end do
+        end do
+    end subroutine pack_kernel
+```
+
+## Exercise 02: Solution {auto-animate="true"}
+
+### Implementing the `unpack_kernel`
+
+```{.fortran startFrom="105"}
+    ! TODO: Implement the unpack kernel.
+    ! Each thread copies one element from the contiguous source buffer (msg_size, num_messages)
+    ! to the strided destination buffer (stride, num_messages):
+    !   dst(i, m) = src(i, m)   for i = 1..msg_size, m = 1..num_messages
+    ! Use a !$omp target teams distribute parallel do collapse(2) construct.
+    subroutine unpack_kernel(dst, src, num_messages, msg_size, stride)
+        real(rk), intent(inout) :: dst(:, :)
+        real(rk), intent(in) :: src(:, :)
+        integer, intent(in) :: num_messages, msg_size, stride
+        ! TODO
+    end subroutine unpack_kernel
+```
+
+## Exercise 02: Solution {auto-animate="true"}
+
+### Implementing the `unpack_kernel`
+
+```{.fortran startFrom="107"}
+    ! Unpack a contiguous buffer back into strided messages.
+    subroutine unpack_kernel(dst, src, num_messages, msg_size, stride)
+        real(rk), intent(inout) :: dst(:, :)
+        real(rk), intent(in) :: src(:, :)
+        integer, intent(in) :: num_messages, msg_size, stride
+        integer :: m, i
+        !$omp target teams distribute parallel do collapse(2)
+        do m = 1, num_messages
+            do i = 1, msg_size
+                dst(i, m) = src(i, m)
+            end do
+        end do
+    end subroutine unpack_kernel
+```
+
+## Exercise 02: Solution {auto-animate="true"}
+
+### The packing loop
+
+```{.fortran startFrom="246"}
+    do iter = 1, num_iters
+        ! TODO: Call pack_kernel to gather send into send_buf
+        !   call pack_kernel(send_buf, send, num_messages, msg_size, stride)
+
+        ! TODO: Post MPI_Isend (send_buf -> next) and MPI_Irecv (recv_buf <- prev)
+        !   inside a !$omp target data use_device_addr(send_buf, recv_buf) region.
+        !   The signatures are
+        !     MPI_Isend(buf, count, datatype, dest, tag, comm, request, ierror)
+        !     MPI_Irecv(buf, count, datatype, source, tag, comm, request, ierror)
+        !   Then call MPI_Waitall to complete both requests:
+        !     MPI_Waitall(count, array_of_requests, array_of_statuses, ierror)
+
+        ! TODO: Call unpack_kernel to scatter recv_buf into recv
+        !   call unpack_kernel(recv, recv_buf, num_messages, msg_size, stride)
+    end do
+```
+
+## Exercise 02: Solution {auto-animate="true"}
+
+### The packing loop
+
+```{.fortran startFrom="250"}
+    do iter = 1, num_iters
+        call pack_kernel(send_buf, send, num_messages, msg_size, stride)
+
+        !$omp target data use_device_addr(send_buf, recv_buf)
+        call MPI_Isend(send_buf, packed_size, MPI_REAL_TYPE, next, 0, &
+                       MPI_COMM_WORLD, reqs(1), ierr)
+        call mpi_check(ierr, "MPI_Isend")
+        call MPI_Irecv(recv_buf, packed_size, MPI_REAL_TYPE, prev, 0, &
+                       MPI_COMM_WORLD, reqs(2), ierr)
+        call mpi_check(ierr, "MPI_Irecv")
+        call MPI_Waitall(2, reqs, statuses, ierr)
+        call mpi_check(ierr, "MPI_Waitall")
+        !$omp end target data
+
+        call unpack_kernel(recv, recv_buf, num_messages, msg_size, stride)
+    end do
+```
 
 ## Overlapping communication and computation
 
