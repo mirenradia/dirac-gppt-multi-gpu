@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 210" role="img" aria-label="Packed message transfer between two GPUs: four data squares pack into a single buffer in GPU 0, cross a thin interconnect pipe through its middle as one unit, unpack in GPU 1, then return in reverse, looping">
+  <title>Packed GPU message transfer</title>
+  <desc>GPU 0 and GPU 1 are connected by a thin interconnect pipe. Four data squares pack into a single contiguous buffer inside GPU 0, cross the pipe through its middle as one unit, unpack to their lanes in GPU 1, then return in reverse, looping.</desc>
+  <style>
+    .box { stroke: #333; stroke-width: 1.5; }
+    .gpu { fill: #fcbad3; }
+    .int { fill: #d4f0f0; }
+    .data { stroke: #333; stroke-width: 1.5; }
+    .d0 { fill: #a8d8ea; } .d1 { fill: #aa96da; } .d2 { fill: #b8e0d2; } .d3 { fill: #ffffd2; }
+    .label { font-family: sans-serif; font-size: 15px; fill: #222; text-anchor: middle; dominant-baseline: central; font-weight: bold; }
+    .intlabel { font-family: sans-serif; font-size: 13px; fill: #444; text-anchor: middle; dominant-baseline: central; }
+    @media (prefers-reduced-motion: reduce) { animate, animateTransform { display: none; } }
+  </style>
+
+  <!-- thin interconnect pipe (middle y = 100) -->
+  <rect x="160" y="88" width="320" height="24" rx="12" class="box int"/>
+
+  <!-- GPU boxes -->
+  <rect x="40" y="40" width="120" height="120" rx="4" class="box gpu"/>
+  <rect x="480" y="40" width="120" height="120" rx="4" class="box gpu"/>
+
+  <!-- labels -->
+  <text x="100" y="185" class="label">GPU 0</text>
+  <text x="320" y="185" class="intlabel">Interconnect</text>
+  <text x="540" y="185" class="label">GPU 1</text>
+
+  <!-- 4 data squares: pack into one buffer in GPU 0, cross the pipe middle as one unit, unpack in GPU 1, then reverse (4s loop) -->
+  <g>
+    <rect x="90" y="54" width="20" height="20" rx="3" class="data d0"/>
+    <animateTransform attributeName="transform" type="translate" dur="4s" repeatCount="indefinite"
+      keyTimes="0;0.125;0.25;0.375;0.5;0.625;0.75;0.875;1"
+      values="0,0;-10,26;430,26;440,0;440,0;430,26;-10,26;0,0;0,0"/>
+  </g>
+  <g>
+    <rect x="90" y="78" width="20" height="20" rx="3" class="data d1"/>
+    <animateTransform attributeName="transform" type="translate" dur="4s" repeatCount="indefinite"
+      keyTimes="0;0.125;0.25;0.375;0.5;0.625;0.75;0.875;1"
+      values="0,0;10,2;450,2;440,0;440,0;450,2;10,2;0,0;0,0"/>
+  </g>
+  <g>
+    <rect x="90" y="102" width="20" height="20" rx="3" class="data d2"/>
+    <animateTransform attributeName="transform" type="translate" dur="4s" repeatCount="indefinite"
+      keyTimes="0;0.125;0.25;0.375;0.5;0.625;0.75;0.875;1"
+      values="0,0;-10,-2;430,-2;440,0;440,0;430,-2;-10,-2;0,0;0,0"/>
+  </g>
+  <g>
+    <rect x="90" y="126" width="20" height="20" rx="3" class="data d3"/>
+    <animateTransform attributeName="transform" type="translate" dur="4s" repeatCount="indefinite"
+      keyTimes="0;0.125;0.25;0.375;0.5;0.625;0.75;0.875;1"
+      values="0,0;10,-26;450,-26;440,0;440,0;450,-26;10,-26;0,0;0,0"/>
+  </g>
+</svg>
