@@ -40,6 +40,21 @@ authors:
 * GPU-aware MPI
 * Optimization techniques to improve performance of multi-GPU applications
 
+## Training material
+
+The material for this course is available in [this
+repository](https://github.com/mirenradia/dirac-gppt-multi-gpu) on GitHub. You
+will need to clone it to your CSD3 training account in order to complete the
+exercises:
+
+```{.bash code-line-numbers="false"}
+git clone https://github.com/mirenradia/dirac-gppt-multi-gpu.git
+```
+
+These slides can be found at
+[tinyurl.com/dirac-multi-gpu](https://tinyurl.com/dirac-multi-gpu). Press the
+`M` key to view the menu and navigate to specific slides.
+
 # MPI Recap
 
 ## What is MPI? {.smaller}
@@ -363,7 +378,7 @@ while not converged:
 <!-- The inline SVG images are quite long hence included separately -->
 {{< include includes/jacobi-domain-decomposition.qmd >}}
 
-## Exercise 01: Jacobi solver
+## Exercise 01: Jacobi solver {.smaller}
 
 Use GPU-aware MPI to parallelize the Jacobi solvers across multiple GPUs. You
 will need to do the following:
@@ -734,9 +749,130 @@ There is an extension task if you finish early.
     end do
 ```
 
-## Overlapping communication and computation
+## Timeline profiling {.smaller}
+
+Let's go back to the Jacobi solver. Profiling with Nsight Systems[^1] gives the
+following timeline:
+
+![](media/nsight-systems-jacobi.png)
+
+[^1]: This screenshot is taken from the ISC/SC Multi-GPU tutorial slides and was
+generated on the JUWELS Booster system with Nvidia A100 40GB GPUS.
+
+## Overlapping computation with communication {auto-animate="true" auto-animate-easing="ease-in-out" auto-animate-duration="0.8"}
+
+Currently the Jacobi solver computes the whole domain and then exchanges the
+boundary data with MPI:
+
+<div class="absolute" data-id="compute" top="280" left="40" width="780" height="75" style="background: #7acb00; color: #404040; display: flex; align-items: center; justify-content: center; font-size: 0.8em;">process whole domain</div>
+
+<div class="absolute" data-id="boundary" top="280" left="40" width="780" height="75" style="background: #f5be00; color: #404040; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 0.8em; opacity: 0;">process boundary<br>domain</div>
+
+<div class="absolute" data-id="mpi" top="280" left="830" width="100" height="75" style="background: #c90000; color: #404040; display: flex; align-items: center; justify-content: center; font-size: 0.8em;">MPI</div>
+
+## Overlapping computation with communication {auto-animate="true" auto-animate-easing="ease-in-out" auto-animate-duration="0.8"}
+
+We can overlap computation with communication by computing the inner domain
+while exchanging the boundary data with MPI:
+
+<div class="absolute" data-id="compute" top="280" left="110" width="690" height="75" style="background: #00577a; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.8em;">process inner domain</div>
+
+<div class="absolute" data-id="boundary" top="400" left="40" width="330" height="75" style="background: #f5be00; color: #404040; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 0.8em; opacity: 1;">process boundary<br>domain</div>
+
+<div class="absolute" data-id="mpi" top="400" left="530" width="100" height="75" style="background: #c90000; color: #404040; display: flex; align-items: center; justify-content: center; font-size: 0.8em;">MPI</div>
+
+<div class="absolute" top="400" left="370" width="160" height="75" style="color: #c44b00; display: flex; align-items: center; justify-content: center; font-size: 1.1em;">&rarr;</div>
+
+<div class="absolute" top="290" left="810" width="150" height="60" style="border: 1px solid #7acb00; color: #404040; display: flex; align-items: center; justify-content: center; font-size: 0.65em;">Possible gain</div>
+
+## CUDA/HIP Streams (C++ only)
+
+* A CUDA/HIP stream is an ordered queue of operations (e.g. kernel execution,
+  memory copies, events, etc.) that   execute on the GPU.
+* Operations within a single stream are guaranteed to execute in order but
+  operations in different streams may execute concurrently.
+* By default if you don't specify a stream, CUDA/HIP operations uses the default
+  (null) stream which is synchronous: it blocks operations on all other streams
+  until it finishes which prevents concurrency.
+* Streams can be created and synchronized as follows:
+  ```cpp
+  cudaStream_t my_new_stream;
+  cudaStreamCreate(&my_new_stream);
+  ...
+  cudaStreamSynchronize(my_new_stream);
+  ```
+
+## Separating inner and boundary domain computations in the Jacobi solver {.smaller auto-animate="true"}
+
+In our Jacobi solver example, we can create new streams and separate the inner
+and boundary domain computations:
+```cpp
+launch_jacobi_kernel(a_new, a, l2_norm_d, iy_start, iy_end, nx, calculate_norm,
+                      compute_stream);
+const int top = rank > 0 ? rank - 1 : (size - 1);
+const int bottom = (rank + 1) % size;
+
+CUDA_RT_CALL(cudaStreamSynchronize(compute_stream));
+MPI_CALL(MPI_Sendrecv(a_new + iy_start * nx, nx, MPI_REAL_TYPE, top, 0,
+                      a_new + (iy_end * nx), nx, MPI_REAL_TYPE, bottom, 0, MPI_COMM_WORLD,
+                      MPI_STATUS_IGNORE));
+MPI_CALL(MPI_Sendrecv(a_new + (iy_end - 1) * nx, nx, MPI_REAL_TYPE, bottom, 0, a_new, nx,
+                      MPI_REAL_TYPE, top, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
+```
+
+## Separating inner and boundary domain computations in the Jacobi solver {.smaller auto-animate="true"}
+
+In our Jacobi solver example, we can create new streams and separate the inner
+and boundary domain computations:
+```cpp
+launch_jacobi_kernel(a_new, a, l2_norm_d, (iy_start + 1), (iy_end - 1), nx,
+                      calculate_norm, compute_stream);
+launch_jacobi_kernel(a_new, a, l2_norm_d, iy_start, (iy_start + 1), nx, calculate_norm,
+                      push_top_stream);
+launch_jacobi_kernel(a_new, a, l2_norm_d, (iy_end - 1), iy_end, nx, calculate_norm,
+                      push_bottom_stream);
+const int top = rank > 0 ? rank - 1 : (size - 1);
+const int bottom = (rank + 1) % size;
+
+CUDA_RT_CALL(cudaStreamSynchronize(push_top_stream));
+MPI_CALL(MPI_Sendrecv(a_new + iy_start * nx, nx, MPI_REAL_TYPE, top, 0,
+                      a_new + (iy_end * nx), nx, MPI_REAL_TYPE, bottom, 0, MPI_COMM_WORLD,
+                      MPI_STATUS_IGNORE));
+
+CUDA_RT_CALL(cudaStreamSynchronize(push_bottom_stream));
+MPI_CALL(MPI_Sendrecv(a_new + (iy_end - 1) * nx, nx, MPI_REAL_TYPE, bottom, 0, a_new, nx,
+                      MPI_REAL_TYPE, top, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
+```
+
+Note the order here is intentional. The inner kernel is largest and will take the longest to complete so we want to start it first.
+
+## Streams with Priority
+
+It's also possible to create streams with different priorities. 
+CUDA has the following functions:
+
+```{.cpp code-line-numbers="false"}
+cudaError_t cudaStreamCreateWithPriority(cudaStream_t *stream, unsigned int flags, int priority);
+
+cudaError_t cudaDeviceGetStreamPriorityRange(int *leastPriority, int *greatestPriority);
+```
+
+In our Jacobi example, we can make the boundary streams higher priority than the
+inner stream so that they finish earlier and communication can start sooner.
+
+## Scaling improvement {.smaller}
+
+After making these changes, improved scaling is observed in the Jacobi solver
+example[^1]
+
+![](media/jacobi-scaling-overlap.png)
+
+[^1]: This screenshot is taken from the ISC/SC Multi-GPU tutorial slides and was
+generated on the JUWELS Booster system with Nvidia A100 40GB GPUS.
 
 ## Exercise: Overlapping communication and computation
+
+
 
 ## Exercise: Solution
 
