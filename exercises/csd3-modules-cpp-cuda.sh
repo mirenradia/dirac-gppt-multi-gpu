@@ -1,8 +1,6 @@
 #!/bin/bash
 
 module purge
-module unuse /usr/local/Cluster-Config/modulefiles
-module use /usr/local/Cluster-Config/modulefiles-test
 
 module load rhel8/ampere/base
 module load gcc/14.3.0/vlhhcp6m
