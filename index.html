@@ -238,7 +238,12 @@ Jamie Quinn
 <li>[Very brief] recap of the Message Passing Interface (MPI)</li>
 <li>How to distribute work to GPUs using MPI</li>
 <li>GPU-aware MPI</li>
-<li>Optimization techniques to improve performance of multi-GPU applications</li>
+<li>Optimization techniques to improve performance of multi-GPU applications:
+<ul>
+<li>Binding MPI processes to specific CPU cores, GPUs and NICs</li>
+<li>Packing kernels</li>
+<li>Overlapping computation and communication</li>
+</ul></li>
 </ul>
 </section>
 <section id="training-material" class="slide level2">
@@ -269,7 +274,7 @@ Jamie Quinn
 <li>MPICH based: MPICH, Intel MPI, Cray MPI, MVAPICH</li>
 </ul></li>
 </ul>
-<aside><ol class="aside-footnotes"><li id="fn1"><p>This screenshot is taken from the ISC/SC Multi-GPU tutorial slides and was generated on the JUWELS Booster system with Nvidia A100 40GB GPUS.</p></li></ol></aside></section>
+<aside><ol class="aside-footnotes"><li id="fn1"><p>Currently only MPICH v5.0+ has support for this but older MPICH-based implementations have had ABI compatibility between each other for a while.</p></li></ol></aside></section>
 <section id="example-mpi-program-c" class="slide level2">
 <h2>Example MPI program (C++)</h2>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode numberSource cpp number-lines code-with-copy"><code class="sourceCode cpp"><span id="cb2-1"><a href="" aria-label="1"></a><span class="pp">#include </span><span class="im">&lt;mpi.h&gt;</span></span>
@@ -316,7 +321,7 @@ Jamie Quinn
 <li><a href="https://www.mpich.org/static/docs/latest/">MPICH Man Pages</a></li>
 <li><a href="https://rookiehpc.org/mpi/index.html">Rookie HPC MPI Docs</a><sup>1</sup></li>
 </ul>
-<aside><ol class="aside-footnotes"><li id="fn2"><p>This screenshot is taken from the ISC/SC Multi-GPU tutorial slides and was generated on the JUWELS Booster system with Nvidia A100 40GB GPUS.</p></li></ol></aside></section></section>
+<aside><ol class="aside-footnotes"><li id="fn2"><p>Some newer/more advanced MPI routines are missing here.</p></li></ol></aside></section></section>
 <section>
 <section id="distributing-work-to-gpus" class="title-slide slide level1 center">
 <h1>Distributing work to GPUs</h1>
@@ -1386,6 +1391,11 @@ window.addEventListener("load", () => {
 <span id="cb27-263" class="hljs-ln-code"><a href="" aria-label="263"></a></span>
 <span id="cb27-264" class="hljs-ln-code"><a href="" aria-label="264"></a>        <span class="kw">call</span> unpack_kernel(recv, recv_buf, num_messages, msg_size, stride)</span>
 <span id="cb27-265" class="hljs-ln-code"><a href="" aria-label="265"></a>    <span class="kw">end do</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section></section>
+<section>
+<section id="overlapping-computation-and-computation" class="title-slide slide level1 center">
+<h1>Overlapping computation and computation</h1>
+
 </section>
 <section id="timeline-profiling" class="slide level2 smaller">
 <h2>Timeline profiling</h2>
@@ -1484,25 +1494,206 @@ Possible gain
 </section>
 <section id="scaling-improvement" class="slide level2 smaller">
 <h2>Scaling improvement</h2>
-<p>After making these changes, improved scaling is observed in the Jacobi solver example<sup>1</sup></p>
-<p><img data-src="media/jacobi-scaling-overlap.png"></p>
-<aside><ol class="aside-footnotes"><li id="fn4"><p>This screenshot is taken from the ISC/SC Multi-GPU tutorial slides and was generated on the JUWELS Booster system with Nvidia A100 40GB GPUS.</p></li></ol></aside></section>
-<section id="exercise-overlapping-communication-and-computation" class="slide level2">
-<h2>Exercise: Overlapping communication and computation</h2>
+<p>After making these changes, improved scaling is observed in the Jacobi solver example[^isc-sc-multi-gpu-tutorial]</p>
+
+<img data-src="media/jacobi-scaling-overlap.png" class="r-stretch"></section>
+<section id="exercise-03-overlapping-communication-and-computation" class="slide level2 smaller">
+<h2>Exercise 03: Overlapping communication and computation</h2>
+<p>Overlap the MPI halo exchange with the Jacobi computation using multiple CUDA streams. The starting point is a multi-GPU Jacobi solver where the halo exchange is already implemented with GPU-aware non-blocking MPI, but the whole Jacobi kernel must finish before any communication starts. You will need to do the following:</p>
+<ol type="1">
+<li>Query the CUDA stream priority range and create additional top and bottom streams with the greatest priority (and the compute stream with the least).</li>
+<li>Split the Jacobi kernel launch into a bulk computation on the compute stream and two one-row boundary kernels on the top and bottom streams.</li>
+<li>Synchronize the compute stream on the boundary events before copying the norm, and synchronize on the boundary streams (not the compute stream) before posting the MPI exchanges.</li>
+<li>Destroy the additional streams and events before the program ends.</li>
+</ol>
+<p>This is a CUDA+C++ only exercise. Since we are only using a small number of GPUs, there won’t be much speed-up and we won’t be able to test scaling. However you can observe the benefits by profiling with Nsight Systems. Further details are in the README file.</p>
 </section>
-<section id="exercise-solution" class="slide level2">
-<h2>Exercise: Solution</h2>
+<section id="exercise-03-solution" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 03: Solution</h2>
+<h3 id="querying-stream-priorities-and-creating-streams">Querying stream priorities and creating streams</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32" data-startfrom="274"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 273;"><span id="cb32-274" class="hljs-ln-code"><a href="" aria-label="274"></a>    <span class="co">// </span><span class="al">TODO</span><span class="co">: Query the CUDA stream priority range (least/greatest) with</span></span>
+<span id="cb32-275" class="hljs-ln-code"><a href="" aria-label="275"></a>    <span class="co">// cudaDeviceGetStreamPriorityRange and declare the additional top and bottom</span></span>
+<span id="cb32-276" class="hljs-ln-code"><a href="" aria-label="276"></a>    <span class="co">// CUDA streams (push_top_stream, push_bottom_stream) and their corresponding</span></span>
+<span id="cb32-277" class="hljs-ln-code"><a href="" aria-label="277"></a>    <span class="co">// events (push_top_done, push_bottom_done)</span></span>
+<span id="cb32-278" class="hljs-ln-code"><a href="" aria-label="278"></a>    <span class="dt">cudaStream_t</span> compute_stream<span class="op">;</span></span>
+<span id="cb32-279" class="hljs-ln-code"><a href="" aria-label="279"></a></span>
+<span id="cb32-280" class="hljs-ln-code"><a href="" aria-label="280"></a>    <span class="co">// </span><span class="al">TODO</span><span class="co">: Create the additional top and bottom CUDA streams with the greatest</span></span>
+<span id="cb32-281" class="hljs-ln-code"><a href="" aria-label="281"></a>    <span class="co">// available priority and change the creation of compute_stream to use the</span></span>
+<span id="cb32-282" class="hljs-ln-code"><a href="" aria-label="282"></a>    <span class="co">// least available priority, using cudaStreamCreateWithPriority</span></span>
+<span id="cb32-283" class="hljs-ln-code"><a href="" aria-label="283"></a>    CUDA_RT_CALL<span class="op">(</span>cudaStreamCreate<span class="op">(&amp;</span>compute_stream<span class="op">));</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-03-solution-1" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 03: Solution</h2>
+<h3 id="querying-stream-priorities-and-creating-streams-1">Querying stream priorities and creating streams</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33" data-startfrom="274"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 273;"><span id="cb33-274" class="hljs-ln-code"><a href="" aria-label="274"></a>    <span class="dt">int</span> leastPriority <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb33-275" class="hljs-ln-code"><a href="" aria-label="275"></a>    <span class="dt">int</span> greatestPriority <span class="op">=</span> leastPriority<span class="op">;</span></span>
+<span id="cb33-276" class="hljs-ln-code"><a href="" aria-label="276"></a>    CUDA_RT_CALL<span class="op">(</span>cudaDeviceGetStreamPriorityRange<span class="op">(&amp;</span>leastPriority<span class="op">,</span> <span class="op">&amp;</span>greatestPriority<span class="op">));</span></span>
+<span id="cb33-277" class="hljs-ln-code"><a href="" aria-label="277"></a></span>
+<span id="cb33-278" class="hljs-ln-code"><a href="" aria-label="278"></a>    <span class="dt">cudaStream_t</span> compute_stream<span class="op">;</span></span>
+<span id="cb33-279" class="hljs-ln-code"><a href="" aria-label="279"></a>    <span class="dt">cudaStream_t</span> push_top_stream<span class="op">;</span></span>
+<span id="cb33-280" class="hljs-ln-code"><a href="" aria-label="280"></a>    <span class="dt">cudaStream_t</span> push_bottom_stream<span class="op">;</span></span>
+<span id="cb33-281" class="hljs-ln-code"><a href="" aria-label="281"></a></span>
+<span id="cb33-282" class="hljs-ln-code"><a href="" aria-label="282"></a>    CUDA_RT_CALL<span class="op">(</span></span>
+<span id="cb33-283" class="hljs-ln-code"><a href="" aria-label="283"></a>        cudaStreamCreateWithPriority<span class="op">(&amp;</span>compute_stream<span class="op">,</span> cudaStreamDefault<span class="op">,</span> leastPriority<span class="op">));</span></span>
+<span id="cb33-284" class="hljs-ln-code"><a href="" aria-label="284"></a>    CUDA_RT_CALL<span class="op">(</span></span>
+<span id="cb33-285" class="hljs-ln-code"><a href="" aria-label="285"></a>        cudaStreamCreateWithPriority<span class="op">(&amp;</span>push_top_stream<span class="op">,</span> cudaStreamDefault<span class="op">,</span> greatestPriority<span class="op">));</span></span>
+<span id="cb33-286" class="hljs-ln-code"><a href="" aria-label="286"></a>    CUDA_RT_CALL<span class="op">(</span></span>
+<span id="cb33-287" class="hljs-ln-code"><a href="" aria-label="287"></a>        cudaStreamCreateWithPriority<span class="op">(&amp;</span>push_bottom_stream<span class="op">,</span> cudaStreamDefault<span class="op">,</span> greatestPriority<span class="op">));</span></span>
+<span id="cb33-288" class="hljs-ln-code"><a href="" aria-label="288"></a></span>
+<span id="cb33-289" class="hljs-ln-code"><a href="" aria-label="289"></a>    <span class="dt">cudaEvent_t</span> push_top_done<span class="op">;</span></span>
+<span id="cb33-290" class="hljs-ln-code"><a href="" aria-label="290"></a>    CUDA_RT_CALL<span class="op">(</span>cudaEventCreateWithFlags<span class="op">(&amp;</span>push_top_done<span class="op">,</span> cudaEventDisableTiming<span class="op">));</span></span>
+<span id="cb33-291" class="hljs-ln-code"><a href="" aria-label="291"></a>    <span class="dt">cudaEvent_t</span> push_bottom_done<span class="op">;</span></span>
+<span id="cb33-292" class="hljs-ln-code"><a href="" aria-label="292"></a>    CUDA_RT_CALL<span class="op">(</span>cudaEventCreateWithFlags<span class="op">(&amp;</span>push_bottom_done<span class="op">,</span> cudaEventDisableTiming<span class="op">));</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-03-solution-2" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 03: Solution</h2>
+<h3 id="splitting-the-jacobi-kernel-launch">Splitting the Jacobi kernel launch</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34" data-startfrom="344"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 343;"><span id="cb34-344" class="hljs-ln-code"><a href="" aria-label="344"></a>        <span class="co">// </span><span class="al">TODO</span><span class="co">: Modify the launch of the Jacobi kernel so that the bulk of the local</span></span>
+<span id="cb34-345" class="hljs-ln-code"><a href="" aria-label="345"></a>        <span class="co">// domain (rows iy_start+1 to iy_end-1) is computed on the compute stream and</span></span>
+<span id="cb34-346" class="hljs-ln-code"><a href="" aria-label="346"></a>        <span class="co">// launch two additional one-row kernels computing the top (row iy_start) and</span></span>
+<span id="cb34-347" class="hljs-ln-code"><a href="" aria-label="347"></a>        <span class="co">// bottom (row iy_end-1) boundary rows on the top and bottom streams. Make</span></span>
+<span id="cb34-348" class="hljs-ln-code"><a href="" aria-label="348"></a>        <span class="co">// these streams wait on the reset_l2norm_done event before launching with</span></span>
+<span id="cb34-349" class="hljs-ln-code"><a href="" aria-label="349"></a>        <span class="co">// cudaStreamWaitEvent (as all three kernels atomically accumulate into</span></span>
+<span id="cb34-350" class="hljs-ln-code"><a href="" aria-label="350"></a>        <span class="co">// l2_norm_d which needs to be zeroed first) and record the push_top_done and</span></span>
+<span id="cb34-351" class="hljs-ln-code"><a href="" aria-label="351"></a>        <span class="co">// push_bottom_done events on their streams after each launch.</span></span>
+<span id="cb34-352" class="hljs-ln-code"><a href="" aria-label="352"></a>        launch_jacobi_kernel<span class="op">(</span>a_new<span class="op">,</span> a<span class="op">,</span> l2_norm_d<span class="op">,</span> iy_start<span class="op">,</span> iy_end<span class="op">,</span> nx<span class="op">,</span> calculate_norm<span class="op">,</span></span>
+<span id="cb34-353" class="hljs-ln-code"><a href="" aria-label="353"></a>                             compute_stream<span class="op">);</span></span>
+<span id="cb34-354" class="hljs-ln-code"><a href="" aria-label="354"></a>        CUDA_RT_CALL<span class="op">(</span>cudaEventRecord<span class="op">(</span>compute_done<span class="op">,</span> compute_stream<span class="op">));</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-03-solution-3" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 03: Solution</h2>
+<h3 id="splitting-the-jacobi-kernel-launch-1">Splitting the Jacobi kernel launch</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35" data-startfrom="344"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 343;"><span id="cb35-344" class="hljs-ln-code"><a href="" aria-label="344"></a>        launch_jacobi_kernel<span class="op">(</span>a_new<span class="op">,</span> a<span class="op">,</span> l2_norm_d<span class="op">,</span> <span class="op">(</span>iy_start <span class="op">+</span> <span class="dv">1</span><span class="op">),</span> <span class="op">(</span>iy_end <span class="op">-</span> <span class="dv">1</span><span class="op">),</span> nx<span class="op">,</span></span>
+<span id="cb35-345" class="hljs-ln-code"><a href="" aria-label="345"></a>                             calculate_norm<span class="op">,</span> compute_stream<span class="op">);</span></span>
+<span id="cb35-346" class="hljs-ln-code"><a href="" aria-label="346"></a>        CUDA_RT_CALL<span class="op">(</span>cudaEventRecord<span class="op">(</span>compute_done<span class="op">,</span> compute_stream<span class="op">));</span></span>
+<span id="cb35-347" class="hljs-ln-code"><a href="" aria-label="347"></a></span>
+<span id="cb35-348" class="hljs-ln-code"><a href="" aria-label="348"></a>        CUDA_RT_CALL<span class="op">(</span>cudaStreamWaitEvent<span class="op">(</span>push_top_stream<span class="op">,</span> reset_l2norm_done<span class="op">,</span> <span class="dv">0</span><span class="op">));</span></span>
+<span id="cb35-349" class="hljs-ln-code"><a href="" aria-label="349"></a>        launch_jacobi_kernel<span class="op">(</span>a_new<span class="op">,</span> a<span class="op">,</span> l2_norm_d<span class="op">,</span> iy_start<span class="op">,</span> <span class="op">(</span>iy_start <span class="op">+</span> <span class="dv">1</span><span class="op">),</span> nx<span class="op">,</span> calculate_norm<span class="op">,</span></span>
+<span id="cb35-350" class="hljs-ln-code"><a href="" aria-label="350"></a>                             push_top_stream<span class="op">);</span></span>
+<span id="cb35-351" class="hljs-ln-code"><a href="" aria-label="351"></a>        CUDA_RT_CALL<span class="op">(</span>cudaEventRecord<span class="op">(</span>push_top_done<span class="op">,</span> push_top_stream<span class="op">));</span></span>
+<span id="cb35-352" class="hljs-ln-code"><a href="" aria-label="352"></a></span>
+<span id="cb35-353" class="hljs-ln-code"><a href="" aria-label="353"></a>        CUDA_RT_CALL<span class="op">(</span>cudaStreamWaitEvent<span class="op">(</span>push_bottom_stream<span class="op">,</span> reset_l2norm_done<span class="op">,</span> <span class="dv">0</span><span class="op">));</span></span>
+<span id="cb35-354" class="hljs-ln-code"><a href="" aria-label="354"></a>        launch_jacobi_kernel<span class="op">(</span>a_new<span class="op">,</span> a<span class="op">,</span> l2_norm_d<span class="op">,</span> <span class="op">(</span>iy_end <span class="op">-</span> <span class="dv">1</span><span class="op">),</span> iy_end<span class="op">,</span> nx<span class="op">,</span> calculate_norm<span class="op">,</span></span>
+<span id="cb35-355" class="hljs-ln-code"><a href="" aria-label="355"></a>                             push_bottom_stream<span class="op">);</span></span>
+<span id="cb35-356" class="hljs-ln-code"><a href="" aria-label="356"></a>        CUDA_RT_CALL<span class="op">(</span>cudaEventRecord<span class="op">(</span>push_bottom_done<span class="op">,</span> push_bottom_stream<span class="op">));</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-03-solution-4" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 03: Solution</h2>
+<h3 id="waiting-on-boundary-events-before-the-norm-copy">Waiting on boundary events before the norm copy</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb36" data-startfrom="357"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 356;"><span id="cb36-357" class="hljs-ln-code"><a href="" aria-label="357"></a>            <span class="co">// </span><span class="al">TODO</span><span class="co">: Make the compute stream wait on the push_top_done and</span></span>
+<span id="cb36-358" class="hljs-ln-code"><a href="" aria-label="358"></a>            <span class="co">// push_bottom_done events with cudaStreamWaitEvent before copying the norm</span></span>
+<span id="cb36-359" class="hljs-ln-code"><a href="" aria-label="359"></a>            <span class="co">// to the host,as the boundary kernels also accumulate into l2_norm_d</span></span>
+<span id="cb36-360" class="hljs-ln-code"><a href="" aria-label="360"></a>            CUDA_RT_CALL<span class="op">(</span>cudaMemcpyAsync<span class="op">(</span>l2_norm_h<span class="op">,</span> l2_norm_d<span class="op">,</span> <span class="kw">sizeof</span><span class="op">(</span>real<span class="op">),</span> cudaMemcpyDeviceToHost<span class="op">,</span></span>
+<span id="cb36-361" class="hljs-ln-code"><a href="" aria-label="361"></a>                                         compute_stream<span class="op">));</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-03-solution-5" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 03: Solution</h2>
+<h3 id="waiting-on-boundary-events-before-the-norm-copy-1">Waiting on boundary events before the norm copy</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37" data-startfrom="357"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 356;"><span id="cb37-357" class="hljs-ln-code"><a href="" aria-label="357"></a>            CUDA_RT_CALL<span class="op">(</span>cudaStreamWaitEvent<span class="op">(</span>compute_stream<span class="op">,</span> push_top_done<span class="op">,</span> <span class="dv">0</span><span class="op">));</span></span>
+<span id="cb37-358" class="hljs-ln-code"><a href="" aria-label="358"></a>            CUDA_RT_CALL<span class="op">(</span>cudaStreamWaitEvent<span class="op">(</span>compute_stream<span class="op">,</span> push_bottom_done<span class="op">,</span> <span class="dv">0</span><span class="op">));</span></span>
+<span id="cb37-359" class="hljs-ln-code"><a href="" aria-label="359"></a>            CUDA_RT_CALL<span class="op">(</span>cudaMemcpyAsync<span class="op">(</span>l2_norm_h<span class="op">,</span> l2_norm_d<span class="op">,</span> <span class="kw">sizeof</span><span class="op">(</span>real<span class="op">),</span> cudaMemcpyDeviceToHost<span class="op">,</span></span>
+<span id="cb37-360" class="hljs-ln-code"><a href="" aria-label="360"></a>                                         compute_stream<span class="op">));</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-03-solution-6" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 03: Solution</h2>
+<h3 id="synchronizing-on-boundary-streams-before-mpi-exchanges">Synchronizing on boundary streams before MPI exchanges</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38" data-startfrom="366"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 365;"><span id="cb38-366" class="hljs-ln-code"><a href="" aria-label="366"></a>        <span class="co">// </span><span class="al">TODO</span><span class="co">: Modify the synchronisation on the compute stream to be a</span></span>
+<span id="cb38-367" class="hljs-ln-code"><a href="" aria-label="367"></a>        <span class="co">// synchronisation on the top stream, so that only the top boundary kernel</span></span>
+<span id="cb38-368" class="hljs-ln-code"><a href="" aria-label="368"></a>        <span class="co">// needs to be done before the top exchange is posted</span></span>
+<span id="cb38-369" class="hljs-ln-code"><a href="" aria-label="369"></a>        CUDA_RT_CALL<span class="op">(</span>cudaEventSynchronize<span class="op">(</span>compute_done<span class="op">));</span></span>
+<span id="cb38-370" class="hljs-ln-code"><a href="" aria-label="370"></a>        MPI_CALL<span class="op">(</span>MPI_Irecv<span class="op">(</span>a_new <span class="op">+</span> iy_end <span class="op">*</span> nx<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> bottom<span class="op">,</span> <span class="dv">0</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span></span>
+<span id="cb38-371" class="hljs-ln-code"><a href="" aria-label="371"></a>                           <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">0</span><span class="op">]));</span></span>
+<span id="cb38-372" class="hljs-ln-code"><a href="" aria-label="372"></a>        MPI_CALL<span class="op">(</span>MPI_Isend<span class="op">(</span>a_new <span class="op">+</span> iy_start <span class="op">*</span> nx<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> top<span class="op">,</span> <span class="dv">0</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span></span>
+<span id="cb38-373" class="hljs-ln-code"><a href="" aria-label="373"></a>                           <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">1</span><span class="op">]));</span></span>
+<span id="cb38-374" class="hljs-ln-code"><a href="" aria-label="374"></a></span>
+<span id="cb38-375" class="hljs-ln-code"><a href="" aria-label="375"></a>        <span class="co">// </span><span class="al">TODO</span><span class="co">: Add a synchronisation on the bottom stream before the bottom exchange,</span></span>
+<span id="cb38-376" class="hljs-ln-code"><a href="" aria-label="376"></a>        <span class="co">// so that only the bottom boundary kernel needs to be done before it is posted</span></span>
+<span id="cb38-377" class="hljs-ln-code"><a href="" aria-label="377"></a>        MPI_CALL<span class="op">(</span>MPI_Irecv<span class="op">(</span>a_new<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> top<span class="op">,</span> <span class="dv">1</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span> <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">2</span><span class="op">]));</span></span>
+<span id="cb38-378" class="hljs-ln-code"><a href="" aria-label="378"></a>        MPI_CALL<span class="op">(</span>MPI_Isend<span class="op">(</span>a_new <span class="op">+</span> <span class="op">(</span>iy_end <span class="op">-</span> <span class="dv">1</span><span class="op">)</span> <span class="op">*</span> nx<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> bottom<span class="op">,</span> <span class="dv">1</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span></span>
+<span id="cb38-379" class="hljs-ln-code"><a href="" aria-label="379"></a>                           <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">3</span><span class="op">]));</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-03-solution-7" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 03: Solution</h2>
+<h3 id="synchronizing-on-boundary-streams-before-mpi-exchanges-1">Synchronizing on boundary streams before MPI exchanges</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb39" data-startfrom="366"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 365;"><span id="cb39-366" class="hljs-ln-code"><a href="" aria-label="366"></a>        CUDA_RT_CALL<span class="op">(</span>cudaStreamSynchronize<span class="op">(</span>push_top_stream<span class="op">));</span></span>
+<span id="cb39-367" class="hljs-ln-code"><a href="" aria-label="367"></a>        MPI_CALL<span class="op">(</span>MPI_Irecv<span class="op">(</span>a_new <span class="op">+</span> iy_end <span class="op">*</span> nx<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> bottom<span class="op">,</span> <span class="dv">0</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span></span>
+<span id="cb39-368" class="hljs-ln-code"><a href="" aria-label="368"></a>                           <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">0</span><span class="op">]));</span></span>
+<span id="cb39-369" class="hljs-ln-code"><a href="" aria-label="369"></a>        MPI_CALL<span class="op">(</span>MPI_Isend<span class="op">(</span>a_new <span class="op">+</span> iy_start <span class="op">*</span> nx<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> top<span class="op">,</span> <span class="dv">0</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span></span>
+<span id="cb39-370" class="hljs-ln-code"><a href="" aria-label="370"></a>                           <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">1</span><span class="op">]));</span></span>
+<span id="cb39-371" class="hljs-ln-code"><a href="" aria-label="371"></a></span>
+<span id="cb39-372" class="hljs-ln-code"><a href="" aria-label="372"></a>        CUDA_RT_CALL<span class="op">(</span>cudaStreamSynchronize<span class="op">(</span>push_bottom_stream<span class="op">));</span></span>
+<span id="cb39-373" class="hljs-ln-code"><a href="" aria-label="373"></a>        MPI_CALL<span class="op">(</span>MPI_Irecv<span class="op">(</span>a_new<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> top<span class="op">,</span> <span class="dv">1</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span> <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">2</span><span class="op">]));</span></span>
+<span id="cb39-374" class="hljs-ln-code"><a href="" aria-label="374"></a>        MPI_CALL<span class="op">(</span>MPI_Isend<span class="op">(</span>a_new <span class="op">+</span> <span class="op">(</span>iy_end <span class="op">-</span> <span class="dv">1</span><span class="op">)</span> <span class="op">*</span> nx<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> bottom<span class="op">,</span> <span class="dv">1</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span></span>
+<span id="cb39-375" class="hljs-ln-code"><a href="" aria-label="375"></a>                           <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">3</span><span class="op">]));</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-03-solution-8" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 03: Solution</h2>
+<h3 id="destroying-additional-streams-and-events">Destroying additional streams and events</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb40" data-startfrom="440"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 439;"><span id="cb40-440" class="hljs-ln-code"><a href="" aria-label="440"></a>    <span class="co">// </span><span class="al">TODO</span><span class="co">: Destroy the additional top and bottom CUDA streams and their</span></span>
+<span id="cb40-441" class="hljs-ln-code"><a href="" aria-label="441"></a>    <span class="co">// corresponding events</span></span>
+<span id="cb40-442" class="hljs-ln-code"><a href="" aria-label="442"></a>    CUDA_RT_CALL<span class="op">(</span>cudaEventDestroy<span class="op">(</span>compute_done<span class="op">));</span></span>
+<span id="cb40-443" class="hljs-ln-code"><a href="" aria-label="443"></a>    CUDA_RT_CALL<span class="op">(</span>cudaEventDestroy<span class="op">(</span>reset_l2norm_done<span class="op">));</span></span>
+<span id="cb40-444" class="hljs-ln-code"><a href="" aria-label="444"></a>    CUDA_RT_CALL<span class="op">(</span>cudaStreamDestroy<span class="op">(</span>compute_stream<span class="op">));</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="exercise-03-solution-9" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title">Exercise 03: Solution</h2>
+<h3 id="destroying-additional-streams-and-events-1">Destroying additional streams and events</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb41" data-startfrom="440"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 439;"><span id="cb41-440" class="hljs-ln-code"><a href="" aria-label="440"></a>    CUDA_RT_CALL<span class="op">(</span>cudaEventDestroy<span class="op">(</span>push_bottom_done<span class="op">));</span></span>
+<span id="cb41-441" class="hljs-ln-code"><a href="" aria-label="441"></a>    CUDA_RT_CALL<span class="op">(</span>cudaEventDestroy<span class="op">(</span>push_top_done<span class="op">));</span></span>
+<span id="cb41-442" class="hljs-ln-code"><a href="" aria-label="442"></a>    CUDA_RT_CALL<span class="op">(</span>cudaStreamDestroy<span class="op">(</span>push_bottom_stream<span class="op">));</span></span>
+<span id="cb41-443" class="hljs-ln-code"><a href="" aria-label="443"></a>    CUDA_RT_CALL<span class="op">(</span>cudaStreamDestroy<span class="op">(</span>push_top_stream<span class="op">));</span></span>
+<span id="cb41-444" class="hljs-ln-code"><a href="" aria-label="444"></a>    CUDA_RT_CALL<span class="op">(</span>cudaEventDestroy<span class="op">(</span>compute_done<span class="op">));</span></span>
+<span id="cb41-445" class="hljs-ln-code"><a href="" aria-label="445"></a>    CUDA_RT_CALL<span class="op">(</span>cudaEventDestroy<span class="op">(</span>reset_l2norm_done<span class="op">));</span></span>
+<span id="cb41-446" class="hljs-ln-code"><a href="" aria-label="446"></a>    CUDA_RT_CALL<span class="op">(</span>cudaStreamDestroy<span class="op">(</span>compute_stream<span class="op">));</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section></section>
 <section>
 <section id="conclusion" class="title-slide slide level1 center">
 <h1>Conclusion</h1>
 
 </section>
-<section id="summary" class="slide level2">
-<h2>Summary</h2>
+<section id="what-weve-covered" class="slide level2">
+<h2>What we’ve covered</h2>
+<ul>
+<li><strong>GPU-aware MPI</strong>: passing GPU pointers directly to MPI routines, with efficient data transfer via P2P and RDMA.</li>
+<li><strong>Optimization techniques</strong>:
+<ul>
+<li>NUMA, affinity, and GPU/NIC binding for best hardware utilization.</li>
+<li>Packing kernels to combine small non-contiguous messages into a single larger buffer.</li>
+<li>Non-blocking communication and collectives.</li>
+</ul></li>
+<li><strong>Overlapping computation and communication</strong>: using CUDA streams and events to improve scaling by exploiting concurrency between computation and communication.</li>
+</ul>
+</section>
+<section id="what-we-havent-covered" class="slide level2 smaller">
+<h2>What we haven’t covered</h2>
+<ul>
+<li>Advanced MPI features (e.g.&nbsp;persistent communication, partitioned communication, etc.)</li>
+<li>Collective Communication Libraries (Nvidia: NCCL, AMD: RCCL, Intel: oneCCL)
+<ul>
+<li>These are commonly used in deep learning frameworks.</li>
+<li>We have used explicit synchronization between GPU kernels and MPI communication.</li>
+<li>NCCL/RCCL/oneCCL are stream/queue-aware so can overlap communication and computation without explicit synchronization → more efficient.</li>
+<li>They also provide optimized collective communication routines for GPUs.</li>
+<li>They can be used alongside MPI.</li>
+</ul></li>
+<li>*SHMEM (Nvidia: NVSHMEM, AMD: rocSHMEM, Intel: Intel SHMEM)
+<ul>
+<li>These are PGAS (Partitioned Global Address Space) libraries that provide direct access to remote GPU memory.</li>
+<li>They can be used alongside MPI.</li>
+<li>They offer GPU-initiated communication and synchronization, which means communication can occur within a GPU kernel (saves on launch overhead).</li>
+</ul></li>
+</ul>
 </section>
 <section id="additional-resources-and-references" class="slide level2">
 <h2>Additional resources and references</h2>
+<ul>
+<li>Material for this course has been adapted from the <a href="https://github.com/FZJ-JSC/tutorial-multi-gpu">ISC/SC tutorial on “Efficient Distributed GPU Programming for Exascale”</a>
+<ul>
+<li>This course also covers NCCL and NVSHMEM.</li>
+</ul></li>
+<li>Nvidia’s <a href="https://github.com/NVIDIA/multi-gpu-programming-models">multi-gpu-programming-models</a> repository contains various implementations of the Jacobi solver implemented with a variety of different communication models (MPI, NCCL, NVSHMEM, etc.) and optimization techniques.</li>
+<li><a href="https://anl.app.box.com/v/2025-isc-mpi-tutorial">ISC 2025 Advanced MPI course</a></li>
+</ul>
 
 <div class="reveal-header">
 <div class="header-logo">
