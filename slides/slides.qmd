@@ -38,7 +38,10 @@ authors:
 * [Very brief] recap of the Message Passing Interface (MPI)
 * How to distribute work to GPUs using MPI
 * GPU-aware MPI
-* Optimization techniques to improve performance of multi-GPU applications
+* Optimization techniques to improve performance of multi-GPU applications:
+  * Binding MPI processes to specific CPU cores, GPUs and NICs
+  * Packing kernels
+  * Overlapping computation and communication
 
 ## Training material
 
@@ -69,12 +72,12 @@ These slides can be found at
   (MPI.jl)
 * Version 5.0 of the standard was released on 5 June 2025 and defined ABI
   compatibility between MPI implementations allowing users to switch between
-  implementations without recompiling their code[^1].
+  implementations without recompiling their code[^mpi-5].
 * Various different implementations e.g.:
   * Open MPI based: Open MPI, Nvidia HPC-X
   * MPICH based: MPICH, Intel MPI, Cray MPI, MVAPICH
 
-[^1]: Currently only MPICH v5.0+ has support for this but older MPICH-based
+[^mpi-5]: Currently only MPICH v5.0+ has support for this but older MPICH-based
 implementations have had ABI compatibility between each other for a while.
 
 
@@ -125,9 +128,9 @@ end program hello_mpi
 * [MPI Forum Documentation](https://www.mpi-forum.org/docs/)
 * [Open MPI Documentation](https://docs.open-mpi.org)
 * [MPICH Man Pages](https://www.mpich.org/static/docs/latest/)
-* [Rookie HPC MPI Docs](https://rookiehpc.org/mpi/index.html)[^1]
+* [Rookie HPC MPI Docs](https://rookiehpc.org/mpi/index.html)[^rookie-hpc]
 
-[^1]: Some newer/more advanced MPI routines are missing here.
+[^rookie-hpc]: Some newer/more advanced MPI routines are missing here.
 
 # Distributing work to GPUs
 
@@ -749,15 +752,19 @@ There is an extension task if you finish early.
     end do
 ```
 
+# Overlapping computation and computation
+
 ## Timeline profiling {.smaller}
 
-Let's go back to the Jacobi solver. Profiling with Nsight Systems[^1] gives the
-following timeline:
+
+Let's go back to the Jacobi solver. Profiling with Nsight
+Systems[^isc-sc-multi-gpu-tutorial-1] gives the following timeline:
 
 ![](media/nsight-systems-jacobi.png)
 
-[^1]: This screenshot is taken from the ISC/SC Multi-GPU tutorial slides and was
-generated on the JUWELS Booster system with Nvidia A100 40GB GPUS.
+[^isc-sc-multi-gpu-tutorial-1]: This screenshot is taken from the ISC/SC
+Multi-GPU tutorial slides and was generated on the JUWELS Booster system with
+Nvidia A100 40GB GPUS.
 
 ## Overlapping computation with communication {auto-animate="true" auto-animate-easing="ease-in-out" auto-animate-duration="0.8"}
 
@@ -848,8 +855,8 @@ Note the order here is intentional. The inner kernel is largest and will take th
 
 ## Streams with Priority
 
-It's also possible to create streams with different priorities. 
-CUDA has the following functions:
+It's also possible to create streams with different priorities.  CUDA has the
+following functions:
 
 ```{.cpp code-line-numbers="false"}
 cudaError_t cudaStreamCreateWithPriority(cudaStream_t *stream, unsigned int flags, int priority);
@@ -863,21 +870,248 @@ inner stream so that they finish earlier and communication can start sooner.
 ## Scaling improvement {.smaller}
 
 After making these changes, improved scaling is observed in the Jacobi solver
-example[^1]
+example[^isc-sc-multi-gpu-tutorial]
 
 ![](media/jacobi-scaling-overlap.png)
 
-[^1]: This screenshot is taken from the ISC/SC Multi-GPU tutorial slides and was
-generated on the JUWELS Booster system with Nvidia A100 40GB GPUS.
+[^isc-sc-multi-gpu-tutorial-2]: This screenshot is taken from the ISC/SC
+Multi-GPU tutorial slides and was generated on the JUWELS Booster system with
+Nvidia A100 40GB GPUS.
 
-## Exercise: Overlapping communication and computation
+## Exercise 03: Overlapping communication and computation {.smaller}
 
+Overlap the MPI halo exchange with the Jacobi computation using multiple CUDA
+streams. The starting point is a multi-GPU Jacobi solver where the halo exchange
+is already implemented with GPU-aware non-blocking MPI, but the whole Jacobi
+kernel must finish before any communication starts. You will need to do the
+following:
 
+1. Query the CUDA stream priority range and create additional top and bottom
+   streams with the greatest priority (and the compute stream with the least).
+1. Split the Jacobi kernel launch into a bulk computation on the compute stream
+   and two one-row boundary kernels on the top and bottom streams.
+1. Synchronize the compute stream on the boundary events before copying the norm,
+   and synchronize on the boundary streams (not the compute stream) before posting
+   the MPI exchanges.
+1. Destroy the additional streams and events before the program ends.
 
-## Exercise: Solution
+This is a CUDA+C++ only exercise. Since we are only using a small number of
+GPUs, there won't be much speed-up and we won't be able to test scaling. However
+you can observe the benefits by profiling with Nsight Systems. Further details
+are in the README file.
+
+## Exercise 03: Solution {auto-animate="true"}
+
+### Querying stream priorities and creating streams
+
+```{.cpp startFrom="274"}
+    // TODO: Query the CUDA stream priority range (least/greatest) with
+    // cudaDeviceGetStreamPriorityRange and declare the additional top and bottom
+    // CUDA streams (push_top_stream, push_bottom_stream) and their corresponding
+    // events (push_top_done, push_bottom_done)
+    cudaStream_t compute_stream;
+
+    // TODO: Create the additional top and bottom CUDA streams with the greatest
+    // available priority and change the creation of compute_stream to use the
+    // least available priority, using cudaStreamCreateWithPriority
+    CUDA_RT_CALL(cudaStreamCreate(&compute_stream));
+```
+
+## Exercise 03: Solution {auto-animate="true"}
+
+### Querying stream priorities and creating streams
+
+```{.cpp startFrom="274"}
+    int leastPriority = 0;
+    int greatestPriority = leastPriority;
+    CUDA_RT_CALL(cudaDeviceGetStreamPriorityRange(&leastPriority, &greatestPriority));
+
+    cudaStream_t compute_stream;
+    cudaStream_t push_top_stream;
+    cudaStream_t push_bottom_stream;
+
+    CUDA_RT_CALL(
+        cudaStreamCreateWithPriority(&compute_stream, cudaStreamDefault, leastPriority));
+    CUDA_RT_CALL(
+        cudaStreamCreateWithPriority(&push_top_stream, cudaStreamDefault, greatestPriority));
+    CUDA_RT_CALL(
+        cudaStreamCreateWithPriority(&push_bottom_stream, cudaStreamDefault, greatestPriority));
+
+    cudaEvent_t push_top_done;
+    CUDA_RT_CALL(cudaEventCreateWithFlags(&push_top_done, cudaEventDisableTiming));
+    cudaEvent_t push_bottom_done;
+    CUDA_RT_CALL(cudaEventCreateWithFlags(&push_bottom_done, cudaEventDisableTiming));
+```
+
+## Exercise 03: Solution {auto-animate="true"}
+
+### Splitting the Jacobi kernel launch
+
+```{.cpp startFrom="344"}
+        // TODO: Modify the launch of the Jacobi kernel so that the bulk of the local
+        // domain (rows iy_start+1 to iy_end-1) is computed on the compute stream and
+        // launch two additional one-row kernels computing the top (row iy_start) and
+        // bottom (row iy_end-1) boundary rows on the top and bottom streams. Make
+        // these streams wait on the reset_l2norm_done event before launching with
+        // cudaStreamWaitEvent (as all three kernels atomically accumulate into
+        // l2_norm_d which needs to be zeroed first) and record the push_top_done and
+        // push_bottom_done events on their streams after each launch.
+        launch_jacobi_kernel(a_new, a, l2_norm_d, iy_start, iy_end, nx, calculate_norm,
+                             compute_stream);
+        CUDA_RT_CALL(cudaEventRecord(compute_done, compute_stream));
+```
+
+## Exercise 03: Solution {auto-animate="true"}
+
+### Splitting the Jacobi kernel launch
+
+```{.cpp startFrom="344"}
+        launch_jacobi_kernel(a_new, a, l2_norm_d, (iy_start + 1), (iy_end - 1), nx,
+                             calculate_norm, compute_stream);
+        CUDA_RT_CALL(cudaEventRecord(compute_done, compute_stream));
+
+        CUDA_RT_CALL(cudaStreamWaitEvent(push_top_stream, reset_l2norm_done, 0));
+        launch_jacobi_kernel(a_new, a, l2_norm_d, iy_start, (iy_start + 1), nx, calculate_norm,
+                             push_top_stream);
+        CUDA_RT_CALL(cudaEventRecord(push_top_done, push_top_stream));
+
+        CUDA_RT_CALL(cudaStreamWaitEvent(push_bottom_stream, reset_l2norm_done, 0));
+        launch_jacobi_kernel(a_new, a, l2_norm_d, (iy_end - 1), iy_end, nx, calculate_norm,
+                             push_bottom_stream);
+        CUDA_RT_CALL(cudaEventRecord(push_bottom_done, push_bottom_stream));
+```
+
+## Exercise 03: Solution {auto-animate="true"}
+
+### Waiting on boundary events before the norm copy
+
+```{.cpp startFrom="357"}
+            // TODO: Make the compute stream wait on the push_top_done and
+            // push_bottom_done events with cudaStreamWaitEvent before copying the norm
+            // to the host,as the boundary kernels also accumulate into l2_norm_d
+            CUDA_RT_CALL(cudaMemcpyAsync(l2_norm_h, l2_norm_d, sizeof(real), cudaMemcpyDeviceToHost,
+                                         compute_stream));
+```
+
+## Exercise 03: Solution {auto-animate="true"}
+
+### Waiting on boundary events before the norm copy
+
+```{.cpp startFrom="357"}
+            CUDA_RT_CALL(cudaStreamWaitEvent(compute_stream, push_top_done, 0));
+            CUDA_RT_CALL(cudaStreamWaitEvent(compute_stream, push_bottom_done, 0));
+            CUDA_RT_CALL(cudaMemcpyAsync(l2_norm_h, l2_norm_d, sizeof(real), cudaMemcpyDeviceToHost,
+                                         compute_stream));
+```
+
+## Exercise 03: Solution {auto-animate="true"}
+
+### Synchronizing on boundary streams before MPI exchanges
+
+```{.cpp startFrom="366"}
+        // TODO: Modify the synchronisation on the compute stream to be a
+        // synchronisation on the top stream, so that only the top boundary kernel
+        // needs to be done before the top exchange is posted
+        CUDA_RT_CALL(cudaEventSynchronize(compute_done));
+        MPI_CALL(MPI_Irecv(a_new + iy_end * nx, nx, MPI_REAL_TYPE, bottom, 0, MPI_COMM_WORLD,
+                           &requests[0]));
+        MPI_CALL(MPI_Isend(a_new + iy_start * nx, nx, MPI_REAL_TYPE, top, 0, MPI_COMM_WORLD,
+                           &requests[1]));
+
+        // TODO: Add a synchronisation on the bottom stream before the bottom exchange,
+        // so that only the bottom boundary kernel needs to be done before it is posted
+        MPI_CALL(MPI_Irecv(a_new, nx, MPI_REAL_TYPE, top, 1, MPI_COMM_WORLD, &requests[2]));
+        MPI_CALL(MPI_Isend(a_new + (iy_end - 1) * nx, nx, MPI_REAL_TYPE, bottom, 1, MPI_COMM_WORLD,
+                           &requests[3]));
+```
+
+## Exercise 03: Solution {auto-animate="true"}
+
+### Synchronizing on boundary streams before MPI exchanges
+
+```{.cpp startFrom="366"}
+        CUDA_RT_CALL(cudaStreamSynchronize(push_top_stream));
+        MPI_CALL(MPI_Irecv(a_new + iy_end * nx, nx, MPI_REAL_TYPE, bottom, 0, MPI_COMM_WORLD,
+                           &requests[0]));
+        MPI_CALL(MPI_Isend(a_new + iy_start * nx, nx, MPI_REAL_TYPE, top, 0, MPI_COMM_WORLD,
+                           &requests[1]));
+
+        CUDA_RT_CALL(cudaStreamSynchronize(push_bottom_stream));
+        MPI_CALL(MPI_Irecv(a_new, nx, MPI_REAL_TYPE, top, 1, MPI_COMM_WORLD, &requests[2]));
+        MPI_CALL(MPI_Isend(a_new + (iy_end - 1) * nx, nx, MPI_REAL_TYPE, bottom, 1, MPI_COMM_WORLD,
+                           &requests[3]));
+```
+
+## Exercise 03: Solution {auto-animate="true"}
+
+### Destroying additional streams and events
+
+```{.cpp startFrom="440"}
+    // TODO: Destroy the additional top and bottom CUDA streams and their
+    // corresponding events
+    CUDA_RT_CALL(cudaEventDestroy(compute_done));
+    CUDA_RT_CALL(cudaEventDestroy(reset_l2norm_done));
+    CUDA_RT_CALL(cudaStreamDestroy(compute_stream));
+```
+
+## Exercise 03: Solution {auto-animate="true"}
+
+### Destroying additional streams and events
+
+```{.cpp startFrom="440"}
+    CUDA_RT_CALL(cudaEventDestroy(push_bottom_done));
+    CUDA_RT_CALL(cudaEventDestroy(push_top_done));
+    CUDA_RT_CALL(cudaStreamDestroy(push_bottom_stream));
+    CUDA_RT_CALL(cudaStreamDestroy(push_top_stream));
+    CUDA_RT_CALL(cudaEventDestroy(compute_done));
+    CUDA_RT_CALL(cudaEventDestroy(reset_l2norm_done));
+    CUDA_RT_CALL(cudaStreamDestroy(compute_stream));
+```
 
 # Conclusion
 
-## Summary
+## What we've covered
+
+* **GPU-aware MPI**: passing GPU pointers directly to MPI routines, with
+  efficient data transfer via P2P and RDMA.
+* **Optimization techniques**:
+  * NUMA, affinity, and GPU/NIC binding for best hardware utilization.
+  * Packing kernels to combine small non-contiguous messages into a single
+    larger buffer.
+  * Non-blocking communication and collectives.
+* **Overlapping computation and communication**: using CUDA streams and events
+  to improve scaling by exploiting concurrency between computation and
+  communication.
+
+## What we haven't covered {.smaller}
+
+* Advanced MPI features (e.g. persistent communication, partitioned
+  communication, etc.)
+* Collective Communication Libraries (Nvidia: NCCL, AMD: RCCL, Intel: oneCCL)
+  * These are commonly used in deep learning frameworks.
+  * We have used explicit synchronization between GPU kernels and MPI
+    communication.
+  * NCCL/RCCL/oneCCL are stream/queue-aware so can overlap communication and
+    computation without explicit synchronization → more efficient.
+  * They also provide optimized collective communication routines for GPUs.
+  * They can be used alongside MPI.
+* *SHMEM (Nvidia: NVSHMEM, AMD: rocSHMEM, Intel: Intel SHMEM)
+  * These are PGAS (Partitioned Global Address Space) libraries that provide
+    direct access to remote GPU memory.
+  * They can be used alongside MPI.
+  * They offer GPU-initiated communication and synchronization, which means
+    communication can occur within a GPU kernel (saves on launch overhead).
 
 ## Additional resources and references
+
+* Material for this course has been adapted from the [ISC/SC tutorial on
+  "Efficient Distributed GPU Programming for
+  Exascale"](https://github.com/FZJ-JSC/tutorial-multi-gpu)
+  * This course also covers NCCL and NVSHMEM.
+* Nvidia's
+  [multi-gpu-programming-models](https://github.com/NVIDIA/multi-gpu-programming-models)
+  repository contains various implementations of the Jacobi solver implemented
+  with a variety of different communication models (MPI, NCCL, NVSHMEM, etc.)
+  and optimization techniques.
+* [ISC 2025 Advanced MPI
+  course](https://anl.app.box.com/v/2025-isc-mpi-tutorial)
