@@ -1,6 +1,8 @@
 ## Example: Domain decomposition {transition="slide-in none-out"}
 
-For simplicity, we will decompose the domain in the $y$ direction only:
+For simplicity, we will decompose the domain in the $y$ direction only with MPI
+rank number increasing as you go down the domain (i.e. rank 0 at the top and
+rank n-1 at the bottom):
 
 :::: {.columns}
 
@@ -103,7 +105,9 @@ For simplicity, we will decompose the domain in the $y$ direction only:
 
 ## Example: Domain decomposition {#example-domain-decomposition-end transition="none-in slide-out"}
 
-For simplicity, we will decompose the domain in the $y$ direction only:
+For simplicity, we will decompose the domain in the $y$ direction only with MPI
+rank number increasing as you go down the domain (i.e. rank 0 at the top and
+rank n-1 at the bottom):
 
 :::: {.columns}
 
