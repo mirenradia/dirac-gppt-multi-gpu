@@ -81,7 +81,7 @@ These slides can be found at
 implementations have had ABI compatibility between each other for a while.
 
 
-## Example MPI program (C++)
+## Example MPI program (C++) {.smaller}
 
 ```cpp
 #include <mpi.h>
@@ -103,8 +103,12 @@ int main(int argc, char* argv[])
     MPI_Finalize();
 }
 ```
+Compile with
+```{.bash code-line-numbers="false"}
+mpicxx -o hello_mpi hello_mpi.cpp
+```
 
-## Example MPI program (Fortran)
+## Example MPI program (Fortran) {.smaller}
 
 ```fortran
 program hello_mpi
@@ -122,6 +126,37 @@ program hello_mpi
   call MPI_Finalize()
 end program hello_mpi
 ```
+Note we are using the modern `mpi_f08` module which should be preferred over the
+older `mpi` module and `mpif.h` header file.
+
+Compile with
+```{.bash code-line-numbers="false"}
+mpifort -o hello_mpi hello_mpi.f90
+```
+
+## Launching MPI programs
+
+* How you launch MPI programs depends on the system and you should always
+  check the system documentation for details.
+* Often you can use `mpiexec` or `mpirun` to launch an MPI program[^pmi]:
+  ```{.bash code-line-numbers="false"}
+  mpiexec -n <num_processes> ./my_mpi_program <options>
+  ```
+* Running our previous example with 4 processes would look like:
+  ```{.bash code-line-numbers="false"}
+  mpiexec -n 4 ./hello_mpi
+  ```
+  and we would expect output similar to
+  ```{.txt code-line-numbers="false"}
+  Hello from rank 0 of 4
+  Hello from rank 1 of 4
+  Hello from rank 2 of 4
+  Hello from rank 3 of 4
+  ```
+
+[^pmi]: When MPI is launched in a batch job, assuming it has been configured
+correctly, it can usually deduce the number of processes and there is no need to
+specify `-n <num_processes>`.
 
 ## MPI references
 
