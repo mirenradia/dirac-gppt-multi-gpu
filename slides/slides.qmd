@@ -751,8 +751,135 @@ There is an extension task if you finish early.
         call unpack_kernel(recv, recv_buf, num_messages, msg_size, stride)
     end do
 ```
+# Case Study: PROMPI
 
-# Overlapping computation and computation
+## PROMPI
+
+:::: {.columns}
+
+::: {.column width="50%"}
+* PROMPI is a fluid dynamics code that is used to simulate complex hydrodynamic
+  processes within stars.
+* Code:
+  * Fortran
+  * MPI parellization
+  * OpenACC for GPU acceleration (currently being ported to OpenMP)
+:::
+
+::: {.column width="50%"}
+<!-- {{< video vmag_vhrez.mp4 width=540 height=540 >}} -->
+![Evolution of the velocity magnitude $|\mathbf{v}|$ for a $1024^3$ simulation
+of the Carbon-burning shell](media/prompi-vmag-vhrez.mp4)
+:::
+
+::::
+
+## Starting place {.smaller}
+### How was communication handled previously?
+
+Previously the code used:
+
+* Nvidia managed memory extension to OpenACC:
+  * When data access is attempted on the host (CPU)/device (GPU) but the data
+    resides on the device/host, a page fault triggers the runtime to migrate the
+    data across.
+* MPI derived datatypes:
+  * Data arrays have halo regions/ghost cells to allow calculating derivatives.
+  * In each direction, these are non-contiguous in memory but regularly spaced.
+  * `MPI_Type_vector` is designed to handle this type of memory layout:
+  ![Non-contiguous memory layout in an
+      `MPI_Type_vector`](media/prompi-mpi-type-vector-memory-layout.svg)
+* Effectively blocking MPI calls:
+  * The data for each variable is stored in separate arrays.
+  * The ghost data for each array was sent in separate `MPI_Isend`s.
+  * However, `MPI_Wait` was called after every `MPI_Irecv`.
+
+## The problem {.smaller}
+### How did this configuration lead to poor performance on multiple GPUs?
+
+* Because of managed memory, each contiguous chunk of the
+  `MPI_Type_vector` was separately migrated from device to host memory.
+* These were then communicated using MPI from the host memory on 1 rank to
+  another.
+* The effectively blocking MPI calls meant these transfers were likely performed
+  sequentially.
+* Lots of small host-device transfers (visible in Nvidia Nsight Systems and
+  Linaro Forge profiling) → poor performance.
+* For a $512^3$ test simulation running on 8 Tursa Nvidia A100s (2 nodes),
+  basic timer profiling showed that > 90% of the walltime was spent in communication.
+
+::: {style="text-align:center;"}
+![](media/prompi-comms-before.svg){.fragment height=150}
+:::
+
+## The solution[^1] {.smaller}
+### How were the communications optimised?
+
+I significantly refactored the communication in the following ways:
+
+* Manual packing and unpacking of data:
+  * Single send/receive buffer for each pair of communicating processes.
+  * Asynchronous OpenACC kernels to [un]pack data from/to ghosts cells from all variables into the single buffer on the GPU.
+  * No more `MPI_Type_vector`.
+* Forced use of GPU-aware MPI:
+  ```{.fortran}
+  !$acc host_data use_device(send_buf)
+  call mpi_isend(send_buf, ...)
+  ```
+* `MPI_Waitall` after all sends and receives for each direction (truly
+  asynchronous).
+
+## Results {.smaller}
+### How much better is the performance following these changes?
+
+After these changes with our test case:
+
+* ~200x speed-up in communication leading to ~20x overall speed-up.
+* < 10% of the walltime spent in communication.
+
+:::: {.columns}
+
+::: {.column width=50%}
+![](media/prompi-comms-after.svg){.fragment width=100%}
+:::
+
+::: {.column width=50%}
+![](media/prompi-performance-improvement.svg){.fragment width=100%}
+:::
+
+::::
+
+
+[^1]: I would like to acknowledge Filippo Spiga (Nvidia) for his help with this work.
+
+## Scaling {.smaller}
+### How does PROMPI scale after these improvements?
+
+:::: {.columns}
+
+::: {.column width=35%}
+#### Weak scaling on Tursa
+* Excellent weak scaling of 88% efficiency up to 128 GPUs.
+* Most relevant scaling for group given typical research workflows.
+![](media/prompi-weak-scaling.png)
+:::
+
+::: {.column width=30%}
+#### Strong scaling on Tursa and COSMA8
+* Good strong scaling (>50% efficiency) up to around 32 Tursa Nvidia A100 80GB GPUs.
+* Efficiency drops for greater numbers due to GPU underutilization.
+* Grey line shows roughly how many COSMA8 (Milan) nodes are equivalent to 1 Tursa GPU.
+:::
+
+::: {.column width=35%}
+![](media/prompi-strong-scaling.png)
+:::
+
+::::
+
+# Any questions?
+
+# Overlapping computation and communication
 
 ## Timeline profiling {.smaller}
 
