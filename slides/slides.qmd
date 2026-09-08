@@ -167,6 +167,8 @@ specify `-n <num_processes>`.
 
 [^rookie-hpc]: Some newer/more advanced MPI routines are missing here.
 
+# Any questions?
+
 # Distributing work to GPUs
 
 <!-- The inline SVG images are quite long hence included separately -->
@@ -229,6 +231,8 @@ call omp_set_default_device(mod(local_rank, num_devs))
 * Some GPUs (e.g. AMD MI250X and Intel Data Center GPU Max 1550/PVC) are
   essentially two GPUs fused together so it is often best here to use two MPI
   processes per GPU.
+
+# Any questions?
 
 # GPU-aware MPI
 
@@ -416,6 +420,8 @@ while not converged:
 <!-- The inline SVG images are quite long hence included separately -->
 {{< include includes/jacobi-domain-decomposition.qmd >}}
 
+# Any questions?
+
 ## Exercise 01: Jacobi solver {.smaller}
 
 Use GPU-aware MPI to parallelize the Jacobi solvers across multiple GPUs. You
@@ -556,6 +562,7 @@ There is an "advanced" extension task if you finish early.
   ```{.bash code-line-numbers=false}
   mpiexec <MPI options> ./binding_script.sh <application> <options>
   ```
+* Huge potential speedups possible: I've observed a 3x speedup recently.
 
 ## Example GPU binding script (CSD3 Ampere nodes)
 
@@ -579,6 +586,8 @@ export CUDA_VISIBLE_DEVICES=${GPUS[${lrank}]}
 export UCX_NET_DEVICES=${NICS[${lrank}]}
 numactl --physcpubind="${CPUS[${lrank}]}" --membind="${MEMS[${lrank}]}" "$@"
 ```
+
+# Any questions?
 
 ## Packing kernels {.smaller}
 
@@ -646,6 +655,8 @@ numactl --physcpubind="${CPUS[${lrank}]}" --membind="${MEMS[${lrank}]}" "$@"
   * Neighbourhood collectives may be more efficient for exchanging halo regions
     in a decomposed domain.
 
+# Any questions?
+
 ## Exercise 02: Packing kernels and non-blocking communication {.smaller}
 
 Replace multiple blocking messages with a packing kernel and non-blocking
@@ -653,13 +664,13 @@ communication. The starting point performs a ring-shift communication between
 GPUs where each rank sends `num_messages` small non-contiguous messages to its
 right neighbour. You will need to do the following:
 
-1. Implement the `pack_kernel` that gathers `num_messages` strided messages into
-   a contiguous buffer using an OpenMP target kernel.
-1. Implement the `unpack_kernel` that scatters a contiguous buffer back into the
-   strided layout.
-1. In the packing loop, call `pack_kernel`, post `MPI_Isend`/`MPI_Irecv` inside a
-   `!$omp target data use_device_addr` region, call `MPI_Waitall`, and call
-   `unpack_kernel`.
+1. Implement the `pack_kernel` routine that gathers the non-contiguous messages
+   into a contiguous buffer.
+1. Implement the `unpack_kernel` routine that scatters a contiguous buffer back
+   into the strided layout.
+1. In the packing loop, call the necessary packing/unpacking kernels and the
+   non-blocking MPI routines to send/receive the packed buffers. Remember to
+   synchronize appropriately.
 
 You can either choose CUDA+C++ or OpenMP+Fortran. Further details are provided
 in the respective README files.
@@ -1029,10 +1040,12 @@ cudaError_t cudaDeviceGetStreamPriorityRange(int *leastPriority, int *greatestPr
 In our Jacobi example, we can make the boundary streams higher priority than the
 inner stream so that they finish earlier and communication can start sooner.
 
+# Any questions?
+
 ## Scaling improvement {.smaller}
 
 After making these changes, improved scaling is observed in the Jacobi solver
-example[^isc-sc-multi-gpu-tutorial]
+example[^isc-sc-multi-gpu-tutorial-2]
 
 ![](media/jacobi-scaling-overlap.png)
 
@@ -1076,8 +1089,10 @@ are in the README file.
     // TODO: Create the additional top and bottom CUDA streams with the greatest
     // available priority and change the creation of compute_stream to use the
     // least available priority, using cudaStreamCreateWithPriority
-    CUDA_RT_CALL(cudaStreamCreate(&compute_stream));
+    cudaStreamCreate(&compute_stream)
 ```
+
+(`CUDA_RT_CALL()`s omitted for brevity.)
 
 ## Exercise 03: Solution {auto-animate="true"}
 
@@ -1086,24 +1101,23 @@ are in the README file.
 ```{.cpp startFrom="274"}
     int leastPriority = 0;
     int greatestPriority = leastPriority;
-    CUDA_RT_CALL(cudaDeviceGetStreamPriorityRange(&leastPriority, &greatestPriority));
+    cudaDeviceGetStreamPriorityRange(&leastPriority, &greatestPriority)
 
     cudaStream_t compute_stream;
     cudaStream_t push_top_stream;
     cudaStream_t push_bottom_stream;
 
-    CUDA_RT_CALL(
-        cudaStreamCreateWithPriority(&compute_stream, cudaStreamDefault, leastPriority));
-    CUDA_RT_CALL(
-        cudaStreamCreateWithPriority(&push_top_stream, cudaStreamDefault, greatestPriority));
-    CUDA_RT_CALL(
-        cudaStreamCreateWithPriority(&push_bottom_stream, cudaStreamDefault, greatestPriority));
+    cudaStreamCreateWithPriority(&compute_stream, cudaStreamDefault, leastPriority)
+    cudaStreamCreateWithPriority(&push_top_stream, cudaStreamDefault, greatestPriority)
+    cudaStreamCreateWithPriority(&push_bottom_stream, cudaStreamDefault, greatestPriority)
 
     cudaEvent_t push_top_done;
-    CUDA_RT_CALL(cudaEventCreateWithFlags(&push_top_done, cudaEventDisableTiming));
+    cudaEventCreateWithFlags(&push_top_done, cudaEventDisableTiming)
     cudaEvent_t push_bottom_done;
-    CUDA_RT_CALL(cudaEventCreateWithFlags(&push_bottom_done, cudaEventDisableTiming));
+    cudaEventCreateWithFlags(&push_bottom_done, cudaEventDisableTiming)
 ```
+
+(`CUDA_RT_CALL()`s omitted for brevity.)
 
 ## Exercise 03: Solution {auto-animate="true"}
 
@@ -1120,8 +1134,10 @@ are in the README file.
         // push_bottom_done events on their streams after each launch.
         launch_jacobi_kernel(a_new, a, l2_norm_d, iy_start, iy_end, nx, calculate_norm,
                              compute_stream);
-        CUDA_RT_CALL(cudaEventRecord(compute_done, compute_stream));
+        cudaEventRecord(compute_done, compute_stream)
 ```
+
+(`CUDA_RT_CALL()`s omitted for brevity.)
 
 ## Exercise 03: Solution {auto-animate="true"}
 
@@ -1130,18 +1146,20 @@ are in the README file.
 ```{.cpp startFrom="344"}
         launch_jacobi_kernel(a_new, a, l2_norm_d, (iy_start + 1), (iy_end - 1), nx,
                              calculate_norm, compute_stream);
-        CUDA_RT_CALL(cudaEventRecord(compute_done, compute_stream));
+        cudaEventRecord(compute_done, compute_stream)
 
-        CUDA_RT_CALL(cudaStreamWaitEvent(push_top_stream, reset_l2norm_done, 0));
+        cudaStreamWaitEvent(push_top_stream, reset_l2norm_done, 0)
         launch_jacobi_kernel(a_new, a, l2_norm_d, iy_start, (iy_start + 1), nx, calculate_norm,
                              push_top_stream);
-        CUDA_RT_CALL(cudaEventRecord(push_top_done, push_top_stream));
+        cudaEventRecord(push_top_done, push_top_stream)
 
-        CUDA_RT_CALL(cudaStreamWaitEvent(push_bottom_stream, reset_l2norm_done, 0));
+        cudaStreamWaitEvent(push_bottom_stream, reset_l2norm_done, 0)
         launch_jacobi_kernel(a_new, a, l2_norm_d, (iy_end - 1), iy_end, nx, calculate_norm,
                              push_bottom_stream);
-        CUDA_RT_CALL(cudaEventRecord(push_bottom_done, push_bottom_stream));
+        cudaEventRecord(push_bottom_done, push_bottom_stream)
 ```
+
+(`CUDA_RT_CALL()`s omitted for brevity.)
 
 ## Exercise 03: Solution {auto-animate="true"}
 
@@ -1151,20 +1169,24 @@ are in the README file.
             // TODO: Make the compute stream wait on the push_top_done and
             // push_bottom_done events with cudaStreamWaitEvent before copying the norm
             // to the host,as the boundary kernels also accumulate into l2_norm_d
-            CUDA_RT_CALL(cudaMemcpyAsync(l2_norm_h, l2_norm_d, sizeof(real), cudaMemcpyDeviceToHost,
-                                         compute_stream));
+            cudaMemcpyAsync(l2_norm_h, l2_norm_d, sizeof(real), cudaMemcpyDeviceToHost,
+                            compute_stream);
 ```
+
+(`CUDA_RT_CALL()`s omitted for brevity.)
 
 ## Exercise 03: Solution {auto-animate="true"}
 
 ### Waiting on boundary events before the norm copy
 
 ```{.cpp startFrom="357"}
-            CUDA_RT_CALL(cudaStreamWaitEvent(compute_stream, push_top_done, 0));
-            CUDA_RT_CALL(cudaStreamWaitEvent(compute_stream, push_bottom_done, 0));
-            CUDA_RT_CALL(cudaMemcpyAsync(l2_norm_h, l2_norm_d, sizeof(real), cudaMemcpyDeviceToHost,
-                                         compute_stream));
+            cudaStreamWaitEvent(compute_stream, push_top_done, 0);
+            cudaStreamWaitEvent(compute_stream, push_bottom_done, 0);
+            cudaMemcpyAsync(l2_norm_h, l2_norm_d, sizeof(real), cudaMemcpyDeviceToHost,
+                            compute_stream);
 ```
+
+(`CUDA_RT_CALL()`s omitted for brevity.)
 
 ## Exercise 03: Solution {auto-animate="true"}
 
@@ -1174,35 +1196,39 @@ are in the README file.
         // TODO: Modify the synchronisation on the compute stream to be a
         // synchronisation on the top stream, so that only the top boundary kernel
         // needs to be done before the top exchange is posted
-        CUDA_RT_CALL(cudaEventSynchronize(compute_done));
-        MPI_CALL(MPI_Irecv(a_new + iy_end * nx, nx, MPI_REAL_TYPE, bottom, 0, MPI_COMM_WORLD,
-                           &requests[0]));
-        MPI_CALL(MPI_Isend(a_new + iy_start * nx, nx, MPI_REAL_TYPE, top, 0, MPI_COMM_WORLD,
-                           &requests[1]));
+        cudaEventSynchronize(compute_done);
+        MPI_Irecv(a_new + iy_end * nx, nx, MPI_REAL_TYPE, bottom, 0, MPI_COMM_WORLD,
+                  &requests[0]);
+        MPI_Isend(a_new + iy_start * nx, nx, MPI_REAL_TYPE, top, 0, MPI_COMM_WORLD,
+                  &requests[1]);
 
         // TODO: Add a synchronisation on the bottom stream before the bottom exchange,
         // so that only the bottom boundary kernel needs to be done before it is posted
-        MPI_CALL(MPI_Irecv(a_new, nx, MPI_REAL_TYPE, top, 1, MPI_COMM_WORLD, &requests[2]));
-        MPI_CALL(MPI_Isend(a_new + (iy_end - 1) * nx, nx, MPI_REAL_TYPE, bottom, 1, MPI_COMM_WORLD,
-                           &requests[3]));
+        MPI_Irecv(a_new, nx, MPI_REAL_TYPE, top, 1, MPI_COMM_WORLD, &requests[2]);
+        MPI_Isend(a_new + (iy_end - 1) * nx, nx, MPI_REAL_TYPE, bottom, 1, MPI_COMM_WORLD,
+                  &requests[3]);
 ```
+
+(`CUDA_RT_CALL()`s and `MPI_CALL()`s omitted for brevity.)
 
 ## Exercise 03: Solution {auto-animate="true"}
 
 ### Synchronizing on boundary streams before MPI exchanges
 
 ```{.cpp startFrom="366"}
-        CUDA_RT_CALL(cudaStreamSynchronize(push_top_stream));
-        MPI_CALL(MPI_Irecv(a_new + iy_end * nx, nx, MPI_REAL_TYPE, bottom, 0, MPI_COMM_WORLD,
-                           &requests[0]));
-        MPI_CALL(MPI_Isend(a_new + iy_start * nx, nx, MPI_REAL_TYPE, top, 0, MPI_COMM_WORLD,
-                           &requests[1]));
+      cudaStreamSynchronize(push_top_stream);
+      MPI_Irecv(a_new + iy_end * nx, nx, MPI_REAL_TYPE, bottom, 0, MPI_COMM_WORLD,
+                &requests[0]);
+      MPI_Isend(a_new + iy_start * nx, nx, MPI_REAL_TYPE, top, 0, MPI_COMM_WORLD,
+                &requests[1]);
 
-        CUDA_RT_CALL(cudaStreamSynchronize(push_bottom_stream));
-        MPI_CALL(MPI_Irecv(a_new, nx, MPI_REAL_TYPE, top, 1, MPI_COMM_WORLD, &requests[2]));
-        MPI_CALL(MPI_Isend(a_new + (iy_end - 1) * nx, nx, MPI_REAL_TYPE, bottom, 1, MPI_COMM_WORLD,
-                           &requests[3]));
+      cudaStreamSynchronize(push_bottom_stream);
+      MPI_Irecv(a_new, nx, MPI_REAL_TYPE, top, 1, MPI_COMM_WORLD, &requests[2]);
+      MPI_Isend(a_new + (iy_end - 1) * nx, nx, MPI_REAL_TYPE, bottom, 1, MPI_COMM_WORLD,
+                &requests[3]);
 ```
+
+(`CUDA_RT_CALL()`s and `MPI_CALL()`s omitted for brevity.)
 
 ## Exercise 03: Solution {auto-animate="true"}
 
@@ -1211,24 +1237,28 @@ are in the README file.
 ```{.cpp startFrom="440"}
     // TODO: Destroy the additional top and bottom CUDA streams and their
     // corresponding events
-    CUDA_RT_CALL(cudaEventDestroy(compute_done));
-    CUDA_RT_CALL(cudaEventDestroy(reset_l2norm_done));
-    CUDA_RT_CALL(cudaStreamDestroy(compute_stream));
+    cudaEventDestroy(compute_done);
+    cudaEventDestroy(reset_l2norm_done);
+    cudaStreamDestroy(compute_stream);
 ```
+
+(`CUDA_RT_CALL()`s omitted for brevity.)
 
 ## Exercise 03: Solution {auto-animate="true"}
 
 ### Destroying additional streams and events
 
 ```{.cpp startFrom="440"}
-    CUDA_RT_CALL(cudaEventDestroy(push_bottom_done));
-    CUDA_RT_CALL(cudaEventDestroy(push_top_done));
-    CUDA_RT_CALL(cudaStreamDestroy(push_bottom_stream));
-    CUDA_RT_CALL(cudaStreamDestroy(push_top_stream));
-    CUDA_RT_CALL(cudaEventDestroy(compute_done));
-    CUDA_RT_CALL(cudaEventDestroy(reset_l2norm_done));
-    CUDA_RT_CALL(cudaStreamDestroy(compute_stream));
+    cudaEventDestroy(push_bottom_done);
+    cudaEventDestroy(push_top_done);
+    cudaStreamDestroy(push_bottom_stream);
+    cudaStreamDestroy(push_top_stream);
+    cudaEventDestroy(compute_done);
+    cudaEventDestroy(reset_l2norm_done);
+    cudaStreamDestroy(compute_stream);
 ```
+
+(`CUDA_RT_CALL()`s omitted for brevity.)
 
 # Conclusion
 
@@ -1277,3 +1307,5 @@ are in the README file.
   and optimization techniques.
 * [ISC 2025 Advanced MPI
   course](https://anl.app.box.com/v/2025-isc-mpi-tutorial)
+
+# Any questions?
