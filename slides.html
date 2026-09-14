@@ -968,7 +968,7 @@ u_{i,j}^{(k+1)} = \frac{1}{4} \left( u_{i-1,j}^{(k)} + u_{i+1,j}^{(k)} +
 </svg>
 </div><div class="column" style="width:50%;">
 <ul>
-<li>In a realistic scenario, we would decompose the domain in both <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> directions to reduce the amount of communication between MPI processes.</li>
+<li>In a realistic scenario, we would decompose the domain in both <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> directions to reduce the amount of communication as the number of MPI processes increases.</li>
 </ul>
 </div></div>
 </section>
@@ -1064,7 +1064,7 @@ u_{i,j}^{(k+1)} = \frac{1}{4} \left( u_{i-1,j}^{(k)} + u_{i+1,j}^{(k)} +
 </svg>
 </div><div class="column" style="width:50%;">
 <ul>
-<li>In a realistic scenario, we would decompose the domain in both <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> directions to reduce the amount of communication between MPI processes.</li>
+<li>In a realistic scenario, we would decompose the domain in both <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> directions to reduce the amount of communication as the number of MPI processes increases.</li>
 </ul>
 </div></div>
 <script>
@@ -1505,8 +1505,8 @@ window.addEventListener("load", () => {
 <p><img data-src="media/prompi-comms-before.svg" class="fragment" height="150"></p>
 </div>
 </section>
-<section id="the-solution1" class="slide level2 smaller">
-<h2>The solution<sup>1</sup></h2>
+<section id="the-solution" class="slide level2 smaller">
+<h2>The solution</h2>
 <h3 id="how-were-the-communications-optimised">How were the communications optimised?</h3>
 <p>I significantly refactored the communication in the following ways:</p>
 <ul>
@@ -1518,10 +1518,11 @@ window.addEventListener("load", () => {
 </ul></li>
 <li><p>Forced use of GPU-aware MPI:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="sourceCode numberSource fortran number-lines code-with-copy"><code class="sourceCode fortranfixed"><span id="cb33-1"><a href="" aria-label="1"></a><span class="co">!$acc host_data use_device(send_buf)</span></span>
-<span id="cb33-2"><a href="" aria-label="2"></a><span class="co">call mpi_isend(send_buf, ...)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<span id="cb33-2"><a href="" aria-label="2"></a><span class="co">call mpi_isend(send_buf, ...)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>(analagous to <code>$!omp target data use_device_addr(send_buf)</code> for OpenMP)</p></li>
 <li><p><code>MPI_Waitall</code> after all sends and receives for each direction (truly asynchronous).</p></li>
 </ul>
-<aside><ol class="aside-footnotes"><li id="fn4"><p>I would like to acknowledge Filippo Spiga (Nvidia) for his help with this work.</p></li></ol></aside></section>
+</section>
 <section id="results" class="slide level2 smaller">
 <h2>Results</h2>
 <h3 id="how-much-better-is-the-performance-following-these-changes">How much better is the performance following these changes?</h3>
@@ -1572,7 +1573,7 @@ window.addEventListener("load", () => {
 <h2>Timeline profiling</h2>
 <p>Let’s go back to the Jacobi solver. Profiling with Nsight Systems<sup>1</sup> gives the following timeline:</p>
 <p><img data-src="media/nsight-systems-jacobi.png"></p>
-<aside><ol class="aside-footnotes"><li id="fn5"><p>This screenshot is taken from the ISC/SC Multi-GPU tutorial slides and was generated on the JUWELS Booster system with Nvidia A100 40GB GPUS.</p></li></ol></aside></section>
+<aside><ol class="aside-footnotes"><li id="fn4"><p>This screenshot is taken from the ISC/SC Multi-GPU tutorial slides and was generated on the JUWELS Booster system with Nvidia A100 40GB GPUS.</p></li></ol></aside></section>
 <section id="overlapping-computation-with-communication" class="slide level2" data-auto-animate="true" data-auto-animate-easing="ease-in-out" data-auto-animate-duration="0.8">
 <h2 data-id="quarto-animate-title">Overlapping computation with communication</h2>
 <p>Currently the Jacobi solver computes the whole domain and then exchanges the boundary data with MPI:</p>
@@ -1672,7 +1673,7 @@ Possible gain
 <h2>Scaling improvement</h2>
 <p>After making these changes, improved scaling is observed in the Jacobi solver example<sup>1</sup></p>
 <p><img data-src="media/jacobi-scaling-overlap.png"></p>
-<aside><ol class="aside-footnotes"><li id="fn6"><p>This screenshot is taken from the ISC/SC Multi-GPU tutorial slides and was generated on the JUWELS Booster system with Nvidia A100 40GB GPUS.</p></li></ol></aside></section>
+<aside><ol class="aside-footnotes"><li id="fn5"><p>This screenshot is taken from the ISC/SC Multi-GPU tutorial slides and was generated on the JUWELS Booster system with Nvidia A100 40GB GPUS.</p></li></ol></aside></section>
 <section id="exercise-03-overlapping-communication-and-computation" class="slide level2 smaller">
 <h2>Exercise 03: Overlapping communication and computation</h2>
 <p>Overlap the MPI halo exchange with the Jacobi computation using multiple CUDA streams. The starting point is a multi-GPU Jacobi solver where the halo exchange is already implemented with GPU-aware non-blocking MPI, but the whole Jacobi kernel must finish before any communication starts. You will need to do the following:</p>
@@ -1795,16 +1796,16 @@ Possible gain
 <section id="exercise-03-solution-7" class="slide level2" data-auto-animate="true">
 <h2 data-id="quarto-animate-title">Exercise 03: Solution</h2>
 <h3 id="synchronizing-on-boundary-streams-before-mpi-exchanges-1">Synchronizing on boundary streams before MPI exchanges</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb45" data-startfrom="366"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 365;"><span id="cb45-366" class="hljs-ln-code"><a href="" aria-label="366"></a>      cudaStreamSynchronize<span class="op">(</span>push_top_stream<span class="op">);</span></span>
-<span id="cb45-367" class="hljs-ln-code"><a href="" aria-label="367"></a>      MPI_Irecv<span class="op">(</span>a_new <span class="op">+</span> iy_end <span class="op">*</span> nx<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> bottom<span class="op">,</span> <span class="dv">0</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span></span>
-<span id="cb45-368" class="hljs-ln-code"><a href="" aria-label="368"></a>                <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">0</span><span class="op">]);</span></span>
-<span id="cb45-369" class="hljs-ln-code"><a href="" aria-label="369"></a>      MPI_Isend<span class="op">(</span>a_new <span class="op">+</span> iy_start <span class="op">*</span> nx<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> top<span class="op">,</span> <span class="dv">0</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span></span>
-<span id="cb45-370" class="hljs-ln-code"><a href="" aria-label="370"></a>                <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">1</span><span class="op">]);</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb45" data-startfrom="366"><pre class="sourceCode numberSource cpp number-lines code-with-copy" data-id="quarto-animate-code"><code class="sourceCode cpp hljs" style="counter-reset: source-line 365;"><span id="cb45-366" class="hljs-ln-code"><a href="" aria-label="366"></a>        cudaStreamSynchronize<span class="op">(</span>push_top_stream<span class="op">);</span></span>
+<span id="cb45-367" class="hljs-ln-code"><a href="" aria-label="367"></a>        MPI_Irecv<span class="op">(</span>a_new <span class="op">+</span> iy_end <span class="op">*</span> nx<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> bottom<span class="op">,</span> <span class="dv">0</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span></span>
+<span id="cb45-368" class="hljs-ln-code"><a href="" aria-label="368"></a>                  <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">0</span><span class="op">]);</span></span>
+<span id="cb45-369" class="hljs-ln-code"><a href="" aria-label="369"></a>        MPI_Isend<span class="op">(</span>a_new <span class="op">+</span> iy_start <span class="op">*</span> nx<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> top<span class="op">,</span> <span class="dv">0</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span></span>
+<span id="cb45-370" class="hljs-ln-code"><a href="" aria-label="370"></a>                  <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">1</span><span class="op">]);</span></span>
 <span id="cb45-371" class="hljs-ln-code"><a href="" aria-label="371"></a></span>
-<span id="cb45-372" class="hljs-ln-code"><a href="" aria-label="372"></a>      cudaStreamSynchronize<span class="op">(</span>push_bottom_stream<span class="op">);</span></span>
-<span id="cb45-373" class="hljs-ln-code"><a href="" aria-label="373"></a>      MPI_Irecv<span class="op">(</span>a_new<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> top<span class="op">,</span> <span class="dv">1</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span> <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">2</span><span class="op">]);</span></span>
-<span id="cb45-374" class="hljs-ln-code"><a href="" aria-label="374"></a>      MPI_Isend<span class="op">(</span>a_new <span class="op">+</span> <span class="op">(</span>iy_end <span class="op">-</span> <span class="dv">1</span><span class="op">)</span> <span class="op">*</span> nx<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> bottom<span class="op">,</span> <span class="dv">1</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span></span>
-<span id="cb45-375" class="hljs-ln-code"><a href="" aria-label="375"></a>                <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">3</span><span class="op">]);</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb45-372" class="hljs-ln-code"><a href="" aria-label="372"></a>        cudaStreamSynchronize<span class="op">(</span>push_bottom_stream<span class="op">);</span></span>
+<span id="cb45-373" class="hljs-ln-code"><a href="" aria-label="373"></a>        MPI_Irecv<span class="op">(</span>a_new<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> top<span class="op">,</span> <span class="dv">1</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span> <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">2</span><span class="op">]);</span></span>
+<span id="cb45-374" class="hljs-ln-code"><a href="" aria-label="374"></a>        MPI_Isend<span class="op">(</span>a_new <span class="op">+</span> <span class="op">(</span>iy_end <span class="op">-</span> <span class="dv">1</span><span class="op">)</span> <span class="op">*</span> nx<span class="op">,</span> nx<span class="op">,</span> MPI_REAL_TYPE<span class="op">,</span> bottom<span class="op">,</span> <span class="dv">1</span><span class="op">,</span> MPI_COMM_WORLD<span class="op">,</span></span>
+<span id="cb45-375" class="hljs-ln-code"><a href="" aria-label="375"></a>                  <span class="op">&amp;</span>requests<span class="op">[</span><span class="dv">3</span><span class="op">]);</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>(<code>CUDA_RT_CALL()</code>s and <code>MPI_CALL()</code>s omitted for brevity.)</p>
 </section>
 <section id="exercise-03-solution-8" class="slide level2" data-auto-animate="true">
