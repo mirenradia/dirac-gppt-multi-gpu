@@ -97,8 +97,9 @@ rank n-1 at the bottom):
 :::
 
 ::: {.column width="50%"}
-* In a realistic scenario, we would decompose the domain in both $x$ and $y$ directions
-  to reduce the amount of communication between MPI processes.
+* In a realistic scenario, we would decompose the domain in both $x$ and $y$
+  directions to reduce the amount of communication as the number of MPI
+  processes increases.
 :::
 
 ::::
@@ -202,8 +203,9 @@ rank n-1 at the bottom):
 :::
 
 ::: {.column width="50%"}
-* In a realistic scenario, we would decompose the domain in both $x$ and $y$ directions
-  to reduce the amount of communication between MPI processes.
+* In a realistic scenario, we would decompose the domain in both $x$ and $y$
+  directions to reduce the amount of communication as the number of MPI
+  processes increases.
 :::
 
 ::::

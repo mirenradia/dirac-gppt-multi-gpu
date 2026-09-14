@@ -858,7 +858,7 @@ Previously the code used:
 ![](media/prompi-comms-before.svg){.fragment height=150}
 :::
 
-## The solution[^1] {.smaller}
+## The solution {.smaller}
 ### How were the communications optimised?
 
 I significantly refactored the communication in the following ways:
@@ -872,6 +872,7 @@ I significantly refactored the communication in the following ways:
   !$acc host_data use_device(send_buf)
   call mpi_isend(send_buf, ...)
   ```
+  (analagous to `$!omp target data use_device_addr(send_buf)` for OpenMP)
 * `MPI_Waitall` after all sends and receives for each direction (truly
   asynchronous).
 
@@ -895,8 +896,6 @@ After these changes with our test case:
 
 ::::
 
-
-[^1]: I would like to acknowledge Filippo Spiga (Nvidia) for his help with this work.
 
 ## Scaling {.smaller}
 ### How does PROMPI scale after these improvements?
@@ -1216,16 +1215,16 @@ are in the README file.
 ### Synchronizing on boundary streams before MPI exchanges
 
 ```{.cpp startFrom="366"}
-      cudaStreamSynchronize(push_top_stream);
-      MPI_Irecv(a_new + iy_end * nx, nx, MPI_REAL_TYPE, bottom, 0, MPI_COMM_WORLD,
-                &requests[0]);
-      MPI_Isend(a_new + iy_start * nx, nx, MPI_REAL_TYPE, top, 0, MPI_COMM_WORLD,
-                &requests[1]);
+        cudaStreamSynchronize(push_top_stream);
+        MPI_Irecv(a_new + iy_end * nx, nx, MPI_REAL_TYPE, bottom, 0, MPI_COMM_WORLD,
+                  &requests[0]);
+        MPI_Isend(a_new + iy_start * nx, nx, MPI_REAL_TYPE, top, 0, MPI_COMM_WORLD,
+                  &requests[1]);
 
-      cudaStreamSynchronize(push_bottom_stream);
-      MPI_Irecv(a_new, nx, MPI_REAL_TYPE, top, 1, MPI_COMM_WORLD, &requests[2]);
-      MPI_Isend(a_new + (iy_end - 1) * nx, nx, MPI_REAL_TYPE, bottom, 1, MPI_COMM_WORLD,
-                &requests[3]);
+        cudaStreamSynchronize(push_bottom_stream);
+        MPI_Irecv(a_new, nx, MPI_REAL_TYPE, top, 1, MPI_COMM_WORLD, &requests[2]);
+        MPI_Isend(a_new + (iy_end - 1) * nx, nx, MPI_REAL_TYPE, bottom, 1, MPI_COMM_WORLD,
+                  &requests[3]);
 ```
 
 (`CUDA_RT_CALL()`s and `MPI_CALL()`s omitted for brevity.)
