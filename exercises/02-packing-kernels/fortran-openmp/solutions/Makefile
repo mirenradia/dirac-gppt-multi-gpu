@@ -2,7 +2,7 @@ THIS_TASK := 02
 OUTPUT_NAME := packing.$(THIS_TASK)__$(shell date '+%Y%m%d-%H%M')
 
 NP ?= 4
-SUBMIT_CMD ?= srun --gres=gpu:4 --ntasks-per-node 4 -p ampere -t 00:02:00
+SUBMIT_CMD ?= srun --gres=gpu:4 --ntasks-per-node 4 -p ampere -t 00:02:00 -A dirac-dt001-gpu
 
 EXEC=packing.ex
 MPIFC=mpifort
