@@ -127,27 +127,27 @@ contains
     ! A row a(:, iy) is contiguous in memory, so it can be sent/received
     ! directly with MPI.
     subroutine initialize_boundaries(a, a_new, pi, offset, nx, my_ny, ny)
-        real(rk), intent(inout) :: a(:, :), a_new(:, 0:)
+        real(rk), intent(inout) :: a(:, :), a_new(:, :)
         real(rk), intent(in) :: pi
         integer, intent(in) :: offset, nx, my_ny, ny
         integer :: iy
         real(rk) :: y0
 
         !$omp target teams distribute parallel do
-        do iy = 0, my_ny - 1
+        do iy = 1, my_ny
             y0 = sin(2.0_rk*pi*(offset + iy)/(ny - 1))
-            a(0, iy) = y0
-            a(nx - 1, iy) = y0
-            a_new(0, iy) = y0
-            a_new(nx - 1, iy) = y0
+            a(1, iy) = y0
+            a(nx, iy) = y0
+            a_new(1, iy) = y0
+            a_new(nx, iy) = y0
         end do
     end subroutine initialize_boundaries
 
     ! One Jacobi iteration. The l2 norm of the residue is only computed if
     ! calculate_norm is true (like the CUDA kernel in the C++ version).
     subroutine jacobi_kernel(a_new, a, l2_norm, iy_start, iy_end, nx, calculate_norm)
-        real(rk), intent(inout) :: a_new(0:, 0:)
-        real(rk), intent(in) :: a(0:, 0:)
+        real(rk), intent(inout) :: a_new(:, :)
+        real(rk), intent(in) :: a(:, :)
         real(rk), intent(out) :: l2_norm
         integer, intent(in) :: iy_start, iy_end, nx
         logical, intent(in) :: calculate_norm
@@ -158,7 +158,7 @@ contains
         if (calculate_norm) then
             !$omp target teams distribute parallel do collapse(2) reduction(+:l2_norm)
             do iy = iy_start, iy_end - 1
-                do ix = 1, nx - 2
+                do ix = 2, nx - 1
                     new_val = 0.25_rk*(a(ix + 1, iy) + a(ix - 1, iy) + &
                                        a(ix, iy + 1) + a(ix, iy - 1))
                     a_new(ix, iy) = new_val
@@ -169,7 +169,7 @@ contains
         else
             !$omp target teams distribute parallel do collapse(2)
             do iy = iy_start, iy_end - 1
-                do ix = 1, nx - 2
+                do ix = 2, nx - 1
                     a_new(ix, iy) = 0.25_rk*(a(ix + 1, iy) + a(ix - 1, iy) + &
                                              a(ix, iy + 1) + a(ix, iy - 1))
                 end do
@@ -181,7 +181,7 @@ contains
     ! runtime (runs on every rank, on the GPU assigned to that rank)
     function single_gpu(nx, ny, iter_max, a_ref_h, nccheck, print_flag) result(runtime)
         integer, intent(in) :: nx, ny, iter_max, nccheck
-        real(rk), intent(out) :: a_ref_h(0:, 0:)
+        real(rk), intent(out) :: a_ref_h(:, :)
         logical, intent(in) :: print_flag
         real(trk) :: runtime
 
@@ -191,10 +191,10 @@ contains
         integer :: iy_start, iy_end, ix, iter
         real(trk) :: start, stop
 
-        iy_start = 1
-        iy_end = ny - 1
+        iy_start = 2
+        iy_end = ny
 
-        allocate (a(0:nx - 1, 0:ny - 1), a_new(0:nx - 1, 0:ny - 1))
+        allocate (a(nx, ny), a_new(nx, ny))
         a = 0.0_rk
         a_new = 0.0_rk
 
@@ -219,11 +219,11 @@ contains
 
             ! Apply periodic boundary conditions
             !$omp target teams distribute parallel do
-            do ix = 0, nx - 1
-                a_new(ix, 0) = a_new(ix, iy_end - 1)
+            do ix = 1, nx
+                a_new(ix, 1) = a_new(ix, iy_end - 1)
             end do
             !$omp target teams distribute parallel do
-            do ix = 0, nx - 1
+            do ix = 1, nx
                 a_new(ix, iy_end) = a_new(ix, iy_start)
             end do
 
@@ -317,8 +317,8 @@ program jacobi
         call omp_set_default_device(mod(local_rank, num_devices))
     end if
 
-    allocate (a_ref_h(0:nx - 1, 0:ny - 1))
-    allocate (a_h(0:nx - 1, 0:ny - 1))
+    allocate (a_ref_h(nx, ny))
+    allocate (a_h(nx, ny))
     runtime_serial = single_gpu(nx, ny, iter_max, a_ref_h, nccheck, &
                                 .not. csv .and. (0 == rank))
 
@@ -327,19 +327,19 @@ program jacobi
         chunk_size = chunk_size + mod(ny - 2, size)
     end if
 
-    allocate (a(0:nx - 1, 0:chunk_size + 1), a_new(0:nx - 1, 0:chunk_size + 1))
+    allocate (a(nx, chunk_size + 2), a_new(nx, chunk_size + 2))
     a = 0.0_rk
     a_new = 0.0_rk
 
-    iy_start_global = rank*((ny - 2)/size) + 1
+    iy_start_global = rank*((ny - 2)/size) + 2
     iy_end_global = iy_start_global + chunk_size - 1  ! My last index in the global array
-    iy_start = 1                                      ! My local start index for computation
+    iy_start = 2                                      ! My local start index for computation
     iy_end = iy_start + chunk_size                    ! My local last index
 
     !$omp target enter data map(to: a, a_new)
 
     ! Set dirichlet boundary conditions on left and right border
-    call initialize_boundaries(a, a_new, PI, iy_start_global - 1, nx, chunk_size + 2, ny)
+    call initialize_boundaries(a, a_new, PI, iy_start_global - 2, nx, chunk_size + 2, ny)
 
     if (.not. csv .and. 0 == rank) then
         write (*, '(A,I0,A,I0,A,I0,A,I0,A)') "Jacobi relaxation: ", iter_max, &
@@ -372,17 +372,17 @@ program jacobi
         ! The first newly calculated row (`iy_start`) is sent to the top neighbour
         ! and the bottom boundary row (`iy_end`) is received from the bottom process.
         ! The last calculated row (`iy_end-1`) is sent to the bottom process and the
-        ! top boundary (`0`) is received from the top.
+        ! top boundary (`1`) is received from the top.
         ! The `!$omp target teams distribute parallel do` constructs in jacobi_kernel
         ! are synchronous, so the computation on the GPU has completed before the
         ! data transfer starts.
         !$omp target data use_device_addr(a_new)
-        call MPI_Sendrecv(a_new(0, iy_start), nx, MPI_REAL_TYPE, top, 0, &
-                          a_new(0, iy_end), nx, MPI_REAL_TYPE, bottom, 0, &
+        call MPI_Sendrecv(a_new(1, iy_start), nx, MPI_REAL_TYPE, top, 0, &
+                          a_new(1, iy_end), nx, MPI_REAL_TYPE, bottom, 0, &
                           MPI_COMM_WORLD, status, ierr)
         call mpi_check(ierr, "MPI_Sendrecv")
-        call MPI_Sendrecv(a_new(0, iy_end - 1), nx, MPI_REAL_TYPE, bottom, 0, &
-                          a_new(0, 0), nx, MPI_REAL_TYPE, top, 0, &
+        call MPI_Sendrecv(a_new(1, iy_end - 1), nx, MPI_REAL_TYPE, bottom, 0, &
+                          a_new(1, 1), nx, MPI_REAL_TYPE, top, 0, &
                           MPI_COMM_WORLD, status, ierr)
         call mpi_check(ierr, "MPI_Sendrecv")
         !$omp end target data
@@ -410,14 +410,14 @@ program jacobi
 
     ! Copy the result back to the host for the correctness check
     n_rows = min(ny - iy_start_global, chunk_size)
-    !$omp target update from(a(0:nx - 1, 1:n_rows))
-    a_h(:, iy_start_global:iy_start_global + n_rows - 1) = a(:, 1:n_rows)
+    !$omp target update from(a(1:nx, 2:n_rows + 1))
+    a_h(:, iy_start_global:iy_start_global + n_rows - 1) = a(:, 2:n_rows + 1)
     !$omp target exit data map(delete: a, a_new)
     deallocate (a, a_new)
 
     result_correct = 1
     row_loop: do iy = iy_start_global, iy_end_global - 1
-        do ix = 1, nx - 2
+        do ix = 2, nx - 1
             if (abs(a_ref_h(ix, iy) - a_h(ix, iy)) > tol) then
                 write (error_unit, '(A,I0,A,I0,A,I0,A,I0,A,F0.6,A,F0.6,A)') &
                     "ERROR on rank ", rank, ": a[", iy, " * ", nx, " + ", ix, "] = ", &
